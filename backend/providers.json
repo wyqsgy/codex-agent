@@ -1,0 +1,127 @@
+[
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "base_url": "https://api.openai.com/v1",
+    "api_key_env": "OPENAI_API_KEY",
+    "models": [
+      {"id": "gpt-4", "name": "GPT-4"},
+      {"id": "gpt-4-turbo", "name": "GPT-4 Turbo"},
+      {"id": "gpt-4o", "name": "GPT-4o"},
+      {"id": "gpt-4o-mini", "name": "GPT-4o Mini"},
+      {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo"}
+    ]
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "base_url": "https://api.deepseek.com",
+    "api_key_env": "DEEPSEEK_API_KEY",
+    "models": [
+      {"id": "deepseek-v4-pro", "name": "DeepSeek V4 Pro"},
+      {"id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash"},
+      {"id": "deepseek-chat", "name": "DeepSeek Chat (V4 Flash)"},
+      {"id": "deepseek-reasoner", "name": "DeepSeek Reasoner (R1)"}
+    ]
+  },
+  {
+    "id": "zhipu",
+    "name": "智谱 GLM",
+    "base_url": "https://open.bigmodel.cn/api/paas/v4",
+    "api_key_env": "ZHIPU_API_KEY",
+    "models": [
+      {"id": "glm-4-plus", "name": "GLM-4 Plus"},
+      {"id": "glm-4", "name": "GLM-4"},
+      {"id": "glm-4-flash", "name": "GLM-4 Flash (免费)"},
+      {"id": "glm-4-air", "name": "GLM-4 Air"},
+      {"id": "glm-4-long", "name": "GLM-4 Long"},
+      {"id": "glm-4-airx", "name": "GLM-4 AirX"}
+    ]
+  },
+  {
+    "id": "xiaomi",
+    "name": "小米 MiMo",
+    "base_url": "https://api.xiaomimimo.com/v1",
+    "api_key_env": "XIAOMI_API_KEY",
+    "models": [
+      {"id": "MiMo-V2.5-Pro", "name": "MiMo V2.5 Pro"},
+      {"id": "MiMo-V2-Flash", "name": "MiMo V2 Flash"},
+      {"id": "MiMo-V2-Hash", "name": "MiMo V2 Hash"}
+    ]
+  },
+  {
+    "id": "qwen",
+    "name": "通义千问",
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key_env": "QWEN_API_KEY",
+    "models": [
+      {"id": "qwen-max", "name": "Qwen Max"},
+      {"id": "qwen-plus", "name": "Qwen Plus"},
+      {"id": "qwen-turbo", "name": "Qwen Turbo"},
+      {"id": "qwen-long", "name": "Qwen Long"},
+      {"id": "qwq-32b", "name": "QwQ-32B 推理"}
+    ]
+  },
+  {
+    "id": "moonshot",
+    "name": "Moonshot (Kimi)",
+    "base_url": "https://api.moonshot.cn/v1",
+    "api_key_env": "MOONSHOT_API_KEY",
+    "models": [
+      {"id": "moonshot-v1-8k", "name": "Moonshot V1 8K"},
+      {"id": "moonshot-v1-32k", "name": "Moonshot V1 32K"},
+      {"id": "moonshot-v1-128k", "name": "Moonshot V1 128K"}
+    ]
+  },
+  {
+    "id": "baichuan",
+    "name": "百川",
+    "base_url": "https://api.baichuan-ai.com/v1",
+    "api_key_env": "BAICHUAN_API_KEY",
+    "models": [
+      {"id": "Baichuan4", "name": "Baichuan4"},
+      {"id": "Baichuan3-Turbo", "name": "Baichuan3 Turbo"},
+      {"id": "Baichuan3-Turbo-128k", "name": "Baichuan3 Turbo 128K"}
+    ]
+  },
+  {
+    "id": "minimax",
+    "name": "MiniMax",
+    "base_url": "https://api.minimax.chat/v1",
+    "api_key_env": "MINIMAX_API_KEY",
+    "models": [
+      {"id": "MiniMax-Text-01", "name": "MiniMax Text 01"},
+      {"id": "abab6.5s-chat", "name": "ABAB 6.5s Chat"}
+    ]
+  },
+  {
+    "id": "yi",
+    "name": "零一万物 (Yi)",
+    "base_url": "https://api.lingyiwanwu.com/v1",
+    "api_key_env": "YI_API_KEY",
+    "models": [
+      {"id": "yi-lightning", "name": "Yi Lightning"},
+      {"id": "yi-large", "name": "Yi Large"},
+      {"id": "yi-medium", "name": "Yi Medium"},
+      {"id": "yi-spark", "name": "Yi Spark"}
+    ]
+  },
+  {
+    "id": "stepfun",
+    "name": "阶跃星辰",
+    "base_url": "https://api.stepfun.com/v1",
+    "api_key_env": "STEPFUN_API_KEY",
+    "models": [
+      {"id": "step-2-16k", "name": "Step-2 16K"},
+      {"id": "step-1-8k", "name": "Step-1 8K"},
+      {"id": "step-1-32k", "name": "Step-1 32K"}
+    ]
+  },
+  {
+    "id": "custom",
+    "name": "自定义 (OpenAI兼容)",
+    "base_url": "",
+    "api_key_env": "CUSTOM_API_KEY",
+    "models": []
+  }
+]
