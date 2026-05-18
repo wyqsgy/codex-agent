@@ -23,6 +23,27 @@ export interface ProviderInfo {
   models: { id: string; name: string }[]
 }
 
+export interface StreamEvent {
+  type: 'meta' | 'token' | 'tool_call' | 'done' | 'error'
+  conversation_id?: string
+  content?: string
+  tool_call?: {
+    tool: string
+    args: Record<string, unknown>
+    result: { success: boolean; result?: unknown; error?: string }
+  }
+  reply?: string
+  tool_calls?: ToolCallInfo[]
+  code_blocks?: { language: string; code: string }[]
+  error?: boolean | string
+}
+
+interface ToolCallInfo {
+  tool: string
+  args: Record<string, unknown>
+  result: { success: boolean; result?: unknown; error?: string }
+}
+
 export async function sendMessage(
   message: string,
   conversationId?: string,
@@ -47,10 +68,68 @@ export async function sendMessage(
   })
 }
 
-interface ToolCallInfo {
-  tool: string
-  args: Record<string, unknown>
-  result: { success: boolean; result?: unknown; error?: string }
+export async function sendMessageStream(
+  message: string,
+  conversationId: string | undefined,
+  providerId: string,
+  model: string,
+  contextFiles: string[] | undefined,
+  signal: AbortSignal,
+  onToken: (token: string) => void,
+  onToolCall: (tc: StreamEvent['tool_call']) => void,
+): Promise<StreamEvent> {
+  const res = await fetch(`${BASE}/chat/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message,
+      conversation_id: conversationId,
+      provider_id: providerId,
+      model,
+      context_files: contextFiles,
+    }),
+    signal,
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(err.detail || res.statusText)
+  }
+
+  const reader = res.body?.getReader()
+  if (!reader) throw new Error('No response body')
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let finalEvent: StreamEvent = { type: 'done' }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const event: StreamEvent = JSON.parse(line.slice(6))
+          if (event.type === 'token' && event.content) {
+            onToken(event.content)
+          } else if (event.type === 'tool_call' && event.tool_call) {
+            onToolCall(event.tool_call)
+          } else if (event.type === 'done' || event.type === 'error') {
+            finalEvent = event
+          }
+        } catch {
+          // skip parse errors
+        }
+      }
+    }
+  }
+
+  return finalEvent
 }
 
 export async function fetchFiles(directory: string = ''): Promise<FileItem[]> {
@@ -115,4 +194,12 @@ export async function deleteProvider(providerId: string): Promise<{ success: boo
 
 export async function testProvider(providerId: string): Promise<{ success: boolean; error?: string; model?: string; response?: string }> {
   return request(`/providers/${providerId}/test`)
+}
+
+export async function listConversations(): Promise<{ id: string; preview: string; message_count: number; created_at: number }[]> {
+  return request('/conversations')
+}
+
+export async function deleteConversation(conversationId: string): Promise<{ success: boolean }> {
+  return request(`/conversations/${conversationId}`, { method: 'DELETE' })
 }

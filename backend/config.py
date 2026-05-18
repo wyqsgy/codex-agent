@@ -1,8 +1,11 @@
 import os
 import json
+import logging
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger("Wsygqy")
 
 PORT = int(os.getenv("PORT", "8000"))
 WORKSPACE_DIR = os.path.abspath(os.getenv("WORKSPACE_DIR", os.path.join(os.path.dirname(__file__), "..", "workspace")))
@@ -15,46 +18,54 @@ USER_PROVIDERS_FILE = os.path.join(os.path.dirname(__file__), "providers.user.js
 os.makedirs(WORKSPACE_DIR, exist_ok=True)
 
 
+def _safe_load_json(filepath: str) -> list[dict]:
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if not isinstance(data, list):
+                logger.warning(f"Invalid JSON structure in {filepath}, expected list")
+                return []
+            return data
+    except FileNotFoundError:
+        return []
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse {filepath}: {e}")
+        return []
+
+
+def _safe_save_json(filepath: str, data):
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 def load_providers() -> list[dict]:
-    providers = []
-    if os.path.exists(PROVIDERS_FILE):
-        with open(PROVIDERS_FILE, "r", encoding="utf-8") as f:
-            providers = json.load(f)
-    if os.path.exists(USER_PROVIDERS_FILE):
-        with open(USER_PROVIDERS_FILE, "r", encoding="utf-8") as f:
-            user_providers = json.load(f)
-            existing_ids = {p["id"] for p in providers}
-            for up in user_providers:
-                idx = next((i for i, p in enumerate(providers) if p["id"] == up["id"]), None)
-                if idx is not None:
-                    providers[idx] = up
-                else:
-                    providers.append(up)
+    providers = _safe_load_json(PROVIDERS_FILE)
+    user_providers = _safe_load_json(USER_PROVIDERS_FILE)
+    existing_ids = {p["id"] for p in providers}
+    for up in user_providers:
+        idx = next((i for i, p in enumerate(providers) if p["id"] == up["id"]), None)
+        if idx is not None:
+            providers[idx] = up
+        else:
+            providers.append(up)
     return providers
 
 
 def save_user_provider(provider: dict):
-    user_providers = []
-    if os.path.exists(USER_PROVIDERS_FILE):
-        with open(USER_PROVIDERS_FILE, "r", encoding="utf-8") as f:
-            user_providers = json.load(f)
+    user_providers = _safe_load_json(USER_PROVIDERS_FILE)
     idx = next((i for i, p in enumerate(user_providers) if p["id"] == provider["id"]), None)
     if idx is not None:
         user_providers[idx] = provider
     else:
         user_providers.append(provider)
-    with open(USER_PROVIDERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(user_providers, f, ensure_ascii=False, indent=2)
+    _safe_save_json(USER_PROVIDERS_FILE, user_providers)
 
 
 def delete_user_provider(provider_id: str):
-    if not os.path.exists(USER_PROVIDERS_FILE):
-        return
-    with open(USER_PROVIDERS_FILE, "r", encoding="utf-8") as f:
-        user_providers = json.load(f)
+    user_providers = _safe_load_json(USER_PROVIDERS_FILE)
     user_providers = [p for p in user_providers if p["id"] != provider_id]
-    with open(USER_PROVIDERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(user_providers, f, ensure_ascii=False, indent=2)
+    _safe_save_json(USER_PROVIDERS_FILE, user_providers)
 
 
 def get_provider_api_key(provider: dict) -> str:
