@@ -1,16 +1,26 @@
-# CodeX Agent
+# CodeX Agent - 多模型 AI 编程助手
 
-一个类似 OpenAI Codex 的消费级 AI 编程助手，支持代码生成、文件管理、代码执行和智能对话。
+<p align="center">
+  <strong>类似 OpenAI Codex 的消费级 AI 编程助手，支持代码生成、文件管理、代码执行和智能对话。</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10+-blue?logo=python" />
+  <img src="https://img.shields.io/badge/fastapi-0.104-green?logo=fastapi" />
+  <img src="https://img.shields.io/badge/react-18-blue?logo=react" />
+  <img src="https://img.shields.io/badge/typescript-5-blue?logo=typescript" />
+  <img src="https://img.shields.io/badge/license-MIT-green" />
+</p>
 
 ## 功能特性
 
-- 🤖 **AI 对话** - 支持 GPT-4 / Claude 3 等多种模型
-- 📝 **代码编辑器** - 基于 CodeMirror 6，支持多语言语法高亮
-- 📂 **文件管理** - 浏览、创建、编辑、删除工作区文件
-- ▶️ **代码执行** - 直接运行 Python / JavaScript / TypeScript 代码
-- 🔧 **工具调用** - Agent 可自主调用工具完成任务
-- 🔍 **代码搜索** - 在工作区中搜索代码内容
-- 💬 **WebSocket** - 支持实时对话流
+- **AI 对话** - 支持 GPT-4 / Claude 3 等多种模型
+- **代码编辑器** - 基于 CodeMirror 6，支持多语言语法高亮
+- **文件管理** - 浏览、创建、编辑、删除工作区文件
+- **代码执行** - 直接运行 Python / JavaScript / TypeScript 代码
+- **工具调用** - Agent 可自主调用工具完成任务
+- **代码搜索** - 在工作区中搜索代码内容
+- **WebSocket** - 支持实时对话流
 
 ## 快速开始
 
@@ -107,3 +117,7 @@ codex-agent/
 - `DEFAULT_MODEL` - 默认模型 (默认: gpt-4)
 - `PORT` - 后端端口 (默认: 8000)
 - `WORKSPACE_DIR` - 工作区目录 (默认: ./workspace)
+
+## 许可证
+
+MIT
