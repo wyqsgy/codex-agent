@@ -124,3 +124,69 @@ class TestCallTool:
         assert result["success"] is True
         assert result["result"]["success"] is False
         assert "Unsupported" in result["result"]["output"]
+
+    def test_execute_code_empty(self):
+        result = _run(call_tool("execute_code", {"code": "", "language": "python"}))
+        assert result["success"] is True
+        assert result["result"]["success"] is False
+
+    def test_execute_code_timeout(self):
+        result = _run(call_tool("execute_code", {
+            "code": "import time; time.sleep(60)",
+            "language": "python",
+            "timeout": 5,
+        }))
+        assert result["success"] is True
+        assert result["result"]["success"] is False
+        assert "timed out" in result["result"]["output"].lower()
+
+    def test_execute_code_javascript(self):
+        result = _run(call_tool("execute_code", {
+            "code": "console.log('hello js')",
+            "language": "javascript",
+        }))
+        assert result["success"] is True
+        assert "hello js" in result["result"]["stdout"]
+
+    def test_missing_required_args(self):
+        result = _run(call_tool("read_file", {}))
+        assert result["success"] is False
+
+    def test_search_files_tool(self):
+        write_file("search_me.py", "def test_func():\n    pass")
+        result = _run(call_tool("search_files", {"query": "test_func", "directory": ""}))
+        assert result["success"] is True
+        assert any(r["path"] == "search_me.py" for r in result["result"])
+
+
+class TestPathTraversalEdgeCases:
+    def test_double_dot_traversal(self):
+        with pytest.raises(ValueError, match="traversal"):
+            safe_path("../..")
+
+    def test_absolute_path_blocked(self):
+        with pytest.raises(ValueError, match="traversal"):
+            safe_path("C:\\Windows\\System32")
+
+    def test_multiple_level_traversal(self):
+        with pytest.raises(ValueError, match="traversal"):
+            safe_path("../../../etc/passwd")
+
+    def test_traversal_with_normal_path(self):
+        with pytest.raises(ValueError, match="traversal"):
+            safe_path("foo/../../../etc/shadow")
+
+
+class TestLargeFileHandling:
+    def test_write_overwrite(self):
+        write_file("overwrite.txt", "v1")
+        write_file("overwrite.txt", "v2")
+        assert read_file("overwrite.txt") == "v2"
+
+    def test_list_files_empty_dir(self):
+        result = list_files("nonexistent_dir")
+        assert result == []
+
+    def test_read_file_with_unicode(self):
+        write_file("unicode.txt", "你好世界 🌍")
+        assert read_file("unicode.txt") == "你好世界 🌍"

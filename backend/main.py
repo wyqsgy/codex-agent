@@ -47,7 +47,7 @@ from tools import delete_file, execute_code, list_files, read_file, search_files
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("CodeX.API")
 
-APP_VERSION = "3.0.0"
+APP_VERSION = "4.0.0"
 
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX = 60

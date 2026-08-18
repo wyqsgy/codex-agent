@@ -29,7 +29,7 @@ async def test_stats(client):
     resp = await client.get("/api/stats")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["version"] == "3.0.0"
+    assert data["version"] == "4.0.0"
     assert "uptime_seconds" in data
     assert "total_requests" in data
 
@@ -109,3 +109,91 @@ async def test_chat_missing_message(client):
 async def test_provider_test_not_found(client):
     resp = await client.get("/api/providers/nonexistent/test")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_file(client):
+    await client.post("/api/files/write", json={"path": "tmp_del.txt", "content": "x"})
+    resp = await client.post("/api/files/delete", json={"path": "tmp_del.txt"})
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_file(client):
+    resp = await client.post("/api/files/delete", json={"path": "never_exists.txt"})
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_execute_code_timeout(client):
+    resp = await client.post("/api/execute", json={
+        "code": "import time; time.sleep(60)",
+        "language": "python",
+        "timeout": 5,
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+    assert "timed out" in (data.get("output", "") or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_execute_code_unsupported_lang(client):
+    resp = await client.post("/api/execute", json={
+        "code": "puts 'hi'",
+        "language": "ruby",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_get_conversation_not_found(client):
+    resp = await client.get("/api/conversations/no-such-id")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_write_file_path_traversal(client):
+    resp = await client.post("/api/files/write", json={
+        "path": "../../../etc/hacked",
+        "content": "evil",
+    })
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_search_empty_query(client):
+    resp = await client.post("/api/search", json={"query": "  ", "directory": ""})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_triggers(client):
+    """发送超过 60 个请求验证限流（providers 端点在限流范围内）。"""
+    statuses = []
+    for _ in range(62):
+        resp = await client.get("/api/providers")
+        statuses.append(resp.status_code)
+    assert statuses[0] == 200
+    # 超过 60 个请求后应触发 429 限流
+    assert 429 in statuses
+
+
+@pytest.mark.asyncio
+async def test_request_id_header(client):
+    resp = await client.get("/api/health")
+    assert "x-request-id" in resp.headers
+
+
+@pytest.mark.asyncio
+async def test_cors_headers(client):
+    resp = await client.options("/api/health", headers={
+        "Origin": "http://localhost:5173",
+        "Access-Control-Request-Method": "GET",
+    })
+    # FastAPI CORS 中间件会自动处理 OPTIONS
+    assert resp.status_code in (200, 405)

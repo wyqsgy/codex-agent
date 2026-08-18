@@ -5,6 +5,51 @@ import hljs from 'highlight.js/lib/common'
 import 'highlight.js/styles/github-dark.css'
 import type { ChatMessage, ToolCall, CodeBlock } from '../types'
 import type { StreamEvent } from '../api'
+import MermaidDiagram from './MermaidDiagram'
+
+// ---------------------------------------------------------------------------
+// 会话导出工具
+// ---------------------------------------------------------------------------
+function exportConversation(messages: ChatMessage[], format: 'markdown' | 'json', title?: string) {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+  const filename = `codex-export-${timestamp}.${format === 'json' ? 'json' : 'md'}`
+
+  if (format === 'json') {
+    const blob = new Blob([JSON.stringify(messages, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+    return
+  }
+
+  // Markdown export
+  let md = `# CodeX Agent Conversation\n\n`
+  if (title) md += `> ${title}\n\n`
+  md += `_Exported at ${new Date().toLocaleString()}_\n\n---\n\n`
+  for (const msg of messages) {
+    if (msg.role === 'system') continue
+    const role = msg.role === 'user' ? '**You**' : '**CodeX**'
+    md += `### ${role}\n\n`
+    if (msg.content) md += `${msg.content}\n\n`
+    if (msg.toolCalls?.length) {
+      md += `<details>\n<summary>Tool Calls (${msg.toolCalls.length})</summary>\n\n`
+      for (const tc of msg.toolCalls) {
+        md += `- **${tc.tool}** \`${tc.result?.success ? 'OK' : 'ERR'}\`\n`
+        md += `  - Args: \`${JSON.stringify(tc.args)}\`\n`
+        if (tc.result?.result) md += `  - Result: \`${JSON.stringify(tc.result.result).slice(0, 200)}\`\n`
+        if (tc.result?.error) md += `  - Error: \`${tc.result.error}\`\n`
+      }
+      md += `\n</details>\n\n`
+    }
+    md += `---\n\n`
+  }
+  const blob = new Blob([md], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -142,9 +187,15 @@ function MarkdownRenderer({ content }: { content: string }) {
               </code>
             )
           }
+          const lang = match[1]
+          const code = String(children).replace(/\n$/, '')
+          // Mermaid diagrams
+          if (lang === 'mermaid') {
+            return <MermaidDiagram code={code} />
+          }
           return (
             <CodeBlockView
-              block={{ language: match[1], code: String(children).replace(/\n$/, '') }}
+              block={{ language: lang, code }}
             />
           )
         },
@@ -433,9 +484,30 @@ export default function ChatPanel({
             </button>
           )}
         </div>
-        <p className="text-[10px] text-[#555570] text-center mt-2">
-          CodeX may produce inaccurate information. Verify important outputs.
-        </p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-[10px] text-[#555570]">
+            CodeX may produce inaccurate information. Verify important outputs.
+          </p>
+          {messages.length > 0 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => exportConversation(messages, 'markdown')}
+                className="text-[10px] text-[#555570] hover:text-[#818cf8] transition-colors px-1"
+                title="Export as Markdown"
+              >
+                Export .md
+              </button>
+              <span className="text-[#2a2a3e] text-[10px]">|</span>
+              <button
+                onClick={() => exportConversation(messages, 'json')}
+                className="text-[10px] text-[#555570] hover:text-[#818cf8] transition-colors px-1"
+                title="Export as JSON"
+              >
+                Export .json
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
