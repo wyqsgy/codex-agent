@@ -66,3 +66,7 @@ logs/
 .cache/
 .coverage
 htmlcov/
+
+# CI 配置文件（OAuth 令牌限制，需手动通过 GitHub 网页添加）
+# 本地保留 ci.yml 作为参考，通过 GitHub 网页 Settings > Actions 手动添加
+.github/
