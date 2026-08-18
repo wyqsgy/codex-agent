@@ -13,6 +13,7 @@ interface ChatPanelProps {
   messages: ChatMessage[]
   onSendMessage: (message: string) => void
   loading: boolean
+  onStop?: () => void
   onApplyCode?: (code: string, lang: string) => void
   conversationId?: string
 }
@@ -343,6 +344,7 @@ export default function ChatPanel({
   messages,
   onSendMessage,
   loading,
+  onStop,
   onApplyCode,
 }: ChatPanelProps) {
   const [input, setInput] = useState('')
@@ -406,24 +408,30 @@ export default function ChatPanel({
             className="flex-1 bg-[#12121a] border border-[#2a2a3e] rounded-2xl px-4 py-2.5 text-sm text-[#e4e4ed] placeholder-[#555570] resize-none focus:outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20 transition-all"
             aria-label="Chat message input"
           />
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !input.trim()}
-            className="px-5 py-2.5 bg-gradient-to-r from-[#6366f1] to-[#4f46e5] hover:from-[#818cf8] hover:to-[#6366f1] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl text-sm font-medium transition-all shadow-lg shadow-[#6366f1]/20"
-            aria-label="Send message"
-          >
-            {loading ? (
-              <span className="flex gap-1">
-                <span className="w-1 h-1 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1 h-1 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1 h-1 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          {loading ? (
+            <button
+              onClick={onStop}
+              className="px-5 py-2.5 bg-[#ef4444] hover:bg-[#dc2626] text-white rounded-2xl text-sm font-medium transition-all shadow-lg shadow-[#ef4444]/20"
+              aria-label="Stop generating"
+              title="Stop generating"
+            >
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-white rounded-sm" />
+                Stop
               </span>
-            ) : (
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={!input.trim()}
+              className="px-5 py-2.5 bg-gradient-to-r from-[#6366f1] to-[#4f46e5] hover:from-[#818cf8] hover:to-[#6366f1] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl text-sm font-medium transition-all shadow-lg shadow-[#6366f1]/20"
+              aria-label="Send message"
+            >
               <span className="flex items-center gap-1">
                 Send <span className="text-[10px]">{'\u23CE'}</span>
               </span>
-            )}
-          </button>
+            </button>
+          )}
         </div>
         <p className="text-[10px] text-[#555570] text-center mt-2">
           CodeX may produce inaccurate information. Verify important outputs.

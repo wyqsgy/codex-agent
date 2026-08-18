@@ -25,6 +25,16 @@ async def test_health(client):
 
 
 @pytest.mark.asyncio
+async def test_stats(client):
+    resp = await client.get("/api/stats")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["version"] == "3.0.0"
+    assert "uptime_seconds" in data
+    assert "total_requests" in data
+
+
+@pytest.mark.asyncio
 async def test_list_providers(client):
     resp = await client.get("/api/providers")
     assert resp.status_code == 200

@@ -64,3 +64,6 @@ logs/
 *.tmp
 *.temp
 .cache/
+
+# 本地 CI 文件（OAuth 令牌无法推送 workflow 文件）
+.github/

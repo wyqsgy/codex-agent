@@ -156,6 +156,7 @@ codex-agent/
 | `POST` | `/api/search` | 搜索代码 |
 | `GET` | `/api/providers` | 提供商列表 |
 | `POST` | `/api/providers/configure` | 配置提供商 |
+| `GET` | `/api/stats` | 服务统计（请求数、运行时间、活跃连接） |
 | `WS` | `/ws/chat` | WebSocket 对话 |
 
 ## 配置

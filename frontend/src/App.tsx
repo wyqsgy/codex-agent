@@ -4,6 +4,7 @@ import ConversationSidebar from './components/ConversationSidebar'
 import CodeEditor from './components/CodeEditor'
 import FileExplorer from './components/FileExplorer'
 import ErrorBoundary from './components/ErrorBoundary'
+import StatusBar from './components/StatusBar'
 import { ToastProvider, useToast } from './components/Toast'
 import {
   sendMessageStream, writeFile, executeCode, getProviders,
@@ -361,6 +362,14 @@ function AppContent() {
     }
   }, [configProvider, configApiKey, configBaseUrl])
 
+  // ---- Abort ----
+  const handleStopGeneration = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
+    }
+  }, [])
+
   // ---- Keyboard Shortcuts ----
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -570,6 +579,7 @@ function AppContent() {
                 messages={messages}
                 onSendMessage={handleSendMessage}
                 loading={loading}
+                onStop={handleStopGeneration}
                 onApplyCode={handleApplyCode}
                 conversationId={conversationId}
               />
@@ -577,6 +587,16 @@ function AppContent() {
           </div>
         </div>
       </div>
+
+      {/* === Status Bar === */}
+      <StatusBar
+        provider={currentProvider?.name || 'Unknown'}
+        model={selectedModel}
+        loading={loading}
+        showSidebar={showSidebar}
+        conversationId={conversationId}
+        messageCount={messages.length}
+      />
 
       {/* === New File Modal === */}
       {showNewFile && (

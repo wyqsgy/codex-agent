@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -51,6 +52,17 @@ APP_VERSION = "3.0.0"
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX = 60
 _rate_limit_store: dict[str, list[float]] = {}
+
+# 统计指标（内存中，非持久化）
+_stats = {
+    "started_at": time.time(),
+    "total_requests": 0,
+    "total_chats": 0,
+    "total_files_created": 0,
+    "total_code_executions": 0,
+    "errors": 0,
+    "active_websockets": 0,
+}
 
 
 def _check_rate_limit(client_ip: str) -> bool:
@@ -99,10 +111,15 @@ async def rate_limit_middleware(request: Request, call_next):
 
 @app.middleware("http")
 async def log_middleware(request: Request, call_next):
+    request_id = str(uuid.uuid4())[:8]
     start = time.time()
+    _stats["total_requests"] += 1
     response = await call_next(request)
     duration = time.time() - start
-    logger.info(f"{request.method} {request.url.path} -> {response.status_code} ({duration:.3f}s)")
+    if response.status_code >= 400:
+        _stats["errors"] += 1
+    logger.info(f"[{request_id}] {request.method} {request.url.path} -> {response.status_code} ({duration:.3f}s)")
+    response.headers["X-Request-ID"] = request_id
     return response
 
 
@@ -116,11 +133,25 @@ async def health():
     }
 
 
+@app.get("/api/stats")
+async def stats():
+    """返回服务运行统计信息。"""
+    uptime = time.time() - _stats["started_at"]
+    return {
+        **{k: v for k, v in _stats.items() if k != "started_at"},
+        "started_at": _stats["started_at"],
+        "uptime_seconds": int(uptime),
+        "uptime_human": f"{int(uptime // 3600)}h {int((uptime % 3600) // 60)}m",
+        "version": APP_VERSION,
+    }
+
+
 # ---------------------------------------------------------------------------
 # 对话
 # ---------------------------------------------------------------------------
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
+    _stats["total_chats"] += 1
     try:
         result = await engine.chat(
             message=req.message,
@@ -139,6 +170,7 @@ async def chat(req: ChatRequest):
 
 @app.post("/api/chat/stream")
 async def chat_stream(req: ChatRequest):
+    _stats["total_chats"] += 1
     async def event_stream():
         async for event in engine.chat_stream(
             message=req.message,
@@ -163,6 +195,7 @@ async def chat_stream(req: ChatRequest):
 @app.websocket("/ws/chat")
 async def ws_chat(websocket: WebSocket):
     await websocket.accept()
+    _stats["active_websockets"] += 1
     conversation_id = None
     try:
         while True:
@@ -184,6 +217,8 @@ async def ws_chat(websocket: WebSocket):
             await websocket.send_text(json.dumps({"error": str(e)}))
         except Exception:
             pass
+    finally:
+        _stats["active_websockets"] -= 1
 
 
 # ---------------------------------------------------------------------------
@@ -234,6 +269,7 @@ async def api_read_file(req: FileReadRequest):
 
 @app.post("/api/files/write")
 async def api_write_file(req: FileWriteRequest):
+    _stats["total_files_created"] += 1
     try:
         result = write_file(req.path, req.content)
         return {"success": True, "message": result}
@@ -257,6 +293,7 @@ async def api_delete_file(req: FileDeleteRequest):
 # ---------------------------------------------------------------------------
 @app.post("/api/execute")
 async def api_execute_code(req: ExecuteCodeRequest):
+    _stats["total_code_executions"] += 1
     try:
         return await execute_code(req.code, req.language, req.timeout)
     except Exception as e:
