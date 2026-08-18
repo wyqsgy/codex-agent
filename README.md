@@ -35,6 +35,10 @@ LLM 通过 **原生 Function Calling** 调用安全工具（SAST 扫描、密钥
 |:-:|:-:|
 | <img src="docs/screenshots/codex-settings-zh.png" width="440" alt="提供商配置" /> | <img src="docs/screenshots/codex-editor-zh.png" width="440" alt="代码编辑器与文件浏览器" /> |
 
+| 安全审计报告（漏洞分级） | 沙箱代码执行 |
+|:-:|:-:|
+| <img src="docs/screenshots/codex-audit-report-zh.png" width="440" alt="安全审计报告" /> | <img src="docs/screenshots/codex-exec-result-zh.png" width="440" alt="沙箱代码执行结果" /> |
+
 ## ✨ 项目亮点
 
 - **自主安全审计 Agent**：LLM 通过 Function Calling 自主规划审计流程（探测 → 扫描 → 验证 → 修复），最大 8 轮迭代

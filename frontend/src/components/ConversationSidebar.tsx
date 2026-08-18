@@ -44,9 +44,17 @@ const ConversationItem = memo(function ConversationItem({
   }
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(conv.id)}
-      className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-150 group ${
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect(conv.id)
+        }
+      }}
+      className={`w-full text-left px-3 py-2.5 rounded-lg transition-all duration-150 group cursor-pointer ${
         isActive
           ? 'bg-[#6366f1]/15 border border-[#6366f1]/30 text-[#e4e4ed]'
           : 'hover:bg-[#1a1a2e] border border-transparent text-[#c0c0d0]'
@@ -72,7 +80,7 @@ const ConversationItem = memo(function ConversationItem({
           {confirming ? '\u2717' : '\u{1F5D1}'}
         </button>
       </div>
-    </button>
+    </div>
   )
 })
 
