@@ -13,7 +13,6 @@
   <img src="https://img.shields.io/badge/sqlite-3-blue?logo=sqlite" alt="SQLite" />
   <img src="https://img.shields.io/badge/docker-2496ED?logo=docker" alt="Docker" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
-  <a href="https://github.com/wyqsgy/codex-agent/actions"><img src="https://github.com/wyqsgy/codex-agent/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
 </p>
 
 ---
