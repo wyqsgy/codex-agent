@@ -6,6 +6,7 @@ import FileExplorer from './components/FileExplorer'
 import ErrorBoundary from './components/ErrorBoundary'
 import StatusBar from './components/StatusBar'
 import { ToastProvider, useToast } from './components/Toast'
+import { I18nProvider, useI18n } from './i18n'
 import {
   sendMessageStream, writeFile, executeCode, getProviders,
   configureProvider, testProvider, getConversation,
@@ -17,6 +18,7 @@ type ViewMode = 'chat' | 'editor'
 type SidebarPanel = 'conversations' | 'files'
 
 function AppContent() {
+  const { t, lang, setLang } = useI18n()
   // ---- Core State ----
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [conversationId, setConversationId] = useState<string | undefined>(undefined)
@@ -79,7 +81,7 @@ function AppContent() {
       setMessages(convMessages)
       setViewMode('chat')
     } catch {
-      addToast('Failed to load conversation', 'error')
+      addToast(t('toast.loadConvFailed'), 'error')
     } finally {
       setLoading(false)
     }
@@ -175,7 +177,7 @@ function AppContent() {
           const next = [...prev]
           const last = next[next.length - 1]
           if (last && last.role === 'assistant') {
-            next[next.length - 1] = { ...last, content: `**Error:** ${errMsg}` }
+            next[next.length - 1] = { ...last, content: `**${t('common.error')}:** ${errMsg}` }
           }
           return next
         })
@@ -196,14 +198,14 @@ function AppContent() {
       }
     } catch (e: unknown) {
       if ((e as Error).name === 'AbortError') {
-        addToast('Request cancelled', 'info')
+        addToast(t('toast.cancelled'), 'info')
       } else {
         const msg = (e as Error).message || 'Unknown error'
         setMessages((prev) => {
           const next = [...prev]
           const last = next[next.length - 1]
           if (last && last.role === 'assistant') {
-            next[next.length - 1] = { ...last, content: `**Error:** ${msg}` }
+            next[next.length - 1] = { ...last, content: `**${t('common.error')}:** ${msg}` }
           }
           return next
         })
@@ -233,9 +235,9 @@ function AppContent() {
     try {
       await writeFile(currentFile, fileContent)
       setFileModified(false)
-      addToast('File saved', 'success')
+      addToast(t('toast.fileSaved'), 'success')
     } catch (e: unknown) {
-      addToast(`Save failed: ${(e as Error).message}`, 'error')
+      addToast(t('toast.saveFailed', { msg: (e as Error).message }), 'error')
     }
   }, [currentFile, fileContent, addToast])
 
@@ -260,9 +262,9 @@ function AppContent() {
       setViewMode('editor')
       setShowNewFile(false)
       setNewFileName('')
-      addToast('File created', 'success')
+      addToast(t('toast.fileCreated'), 'success')
     } catch (e: unknown) {
-      addToast(`Create failed: ${(e as Error).message}`, 'error')
+      addToast(t('toast.createFailed', { msg: (e as Error).message }), 'error')
     }
   }, [newFileName, addToast])
 
@@ -280,9 +282,9 @@ function AppContent() {
       setFileContent(code)
       setFileModified(false)
       setViewMode('editor')
-      addToast('Code applied to file', 'success')
+      addToast(t('toast.codeApplied'), 'success')
     } catch (e: unknown) {
-      addToast(`Apply failed: ${(e as Error).message}`, 'error')
+      addToast(t('toast.applyFailed', { msg: (e as Error).message }), 'error')
     }
   }, [addToast])
 
@@ -299,17 +301,17 @@ function AppContent() {
       const result = await executeCode(fileContent, lang)
       const outputMsg: ChatMessage = {
         role: 'assistant',
-        content: `**\u25B6\uFE0F Execute:** \`${currentFile}\`\n\n${
+        content: `**\u25B6\uFE0F ${t('exec.label')}:** \`${currentFile}\`\n\n${
           result.success
-            ? `\u2705 **Success**\n\`\`\`\n${result.stdout || '(no output)'}\n\`\`\``
-            : `\u274C **Failed**\n\`\`\`\n${result.stderr || result.output || 'Unknown error'}\n\`\`\``
+            ? `\u2705 **${t('exec.success')}**\n\`\`\`\n${result.stdout || t('exec.noOutput')}\n\`\`\``
+            : `\u274C **${t('exec.failed')}**\n\`\`\`\n${result.stderr || result.output || t('exec.unknownError')}\n\`\`\``
         }`,
       }
       setMessages((prev) => [...prev, outputMsg])
       setViewMode('chat')
-      addToast(result.success ? 'Code executed successfully' : 'Code execution failed', result.success ? 'success' : 'error')
+      addToast(result.success ? t('toast.execSuccess') : t('toast.execFailed'), result.success ? 'success' : 'error')
     } catch (e: unknown) {
-      addToast(`Execution error: ${(e as Error).message}`, 'error')
+      addToast(t('toast.execError', { msg: (e as Error).message }), 'error')
     } finally {
       setLoading(false)
     }
@@ -335,9 +337,9 @@ function AppContent() {
       await refreshProviders()
       setShowSettings(false)
       setConfigProvider(null)
-      addToast('Provider configured', 'success')
+      addToast(t('toast.providerConfigured'), 'success')
     } catch (e: unknown) {
-      addToast(`Config failed: ${(e as Error).message}`, 'error')
+      addToast(t('toast.configFailed', { msg: (e as Error).message }), 'error')
     }
   }, [configProvider, configBaseUrl, configApiKey, refreshProviders, addToast])
 
@@ -430,20 +432,20 @@ function AppContent() {
                 const p = providers.find(pr => pr.id === e.target.value)
                 if (p && p.models.length > 0) setSelectedModel(p.models[0].id)
               }}
-              className="bg-[#12121a] border border-[#2a2a3e] rounded-lg px-2 py-1 text-xs text-[#c0c0d0] focus:outline-none focus:border-[#6366f1] max-w-[130px] appearance-none cursor-pointer"
-              aria-label="Select provider"
+              className="bg-[#12121a] border border-[#2a2a3e] rounded-lg px-2 py-1 text-xs text-[#c0c0d0] focus:outline-none focus:border-[#6366f1] max-w-[180px] appearance-none cursor-pointer"
+              aria-label={t('nav.selectProvider')}
             >
               {providers.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} {p.api_key_set ? '' : '(no key)'}
+                  {p.name} {p.api_key_set ? '' : t('provider.noKey')}
                 </option>
               ))}
             </select>
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="bg-[#12121a] border border-[#2a2a3e] rounded-lg px-2 py-1 text-xs text-[#c0c0d0] focus:outline-none focus:border-[#6366f1] max-w-[150px] appearance-none cursor-pointer"
-              aria-label="Select model"
+              className="bg-[#12121a] border border-[#2a2a3e] rounded-lg px-2 py-1 text-xs text-[#c0c0d0] focus:outline-none focus:border-[#6366f1] max-w-[240px] appearance-none cursor-pointer"
+              aria-label={t('nav.selectModel')}
             >
               {availableModels.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
@@ -460,7 +462,7 @@ function AppContent() {
             className={`px-2 py-1 rounded-lg text-xs transition-all ${
               showSidebar ? 'bg-[#6366f1]/15 text-[#818cf8]' : 'text-[#8888a0] hover:text-[#e4e4ed]'
             }`}
-            title="Toggle sidebar (Ctrl+B)"
+            title={t('nav.toggleSidebar')}
           >
             {showSidebar ? '\u25C0' : '\u25B6'}
           </button>
@@ -475,7 +477,7 @@ function AppContent() {
                   : 'text-[#8888a0] hover:text-[#e4e4ed]'
               }`}
             >
-              Chats
+              {t('nav.chats')}
             </button>
             <button
               onClick={() => setSidebarPanel('files')}
@@ -485,15 +487,24 @@ function AppContent() {
                   : 'text-[#8888a0] hover:text-[#e4e4ed]'
               }`}
             >
-              Files
+              {t('nav.files')}
             </button>
           </div>
+
+          {/* Language Toggle */}
+          <button
+            onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+            className="px-2 py-1 rounded-lg text-xs font-medium text-[#8888a0] hover:text-[#e4e4ed] hover:bg-[#12121a] transition-all"
+            title={lang === 'zh' ? 'Switch to English' : '切换为中文'}
+          >
+            {lang === 'zh' ? 'EN' : '中文'}
+          </button>
 
           {/* Settings */}
           <button
             onClick={() => setShowSettings(true)}
             className="px-2 py-1 rounded-lg text-xs text-[#8888a0] hover:text-[#e4e4ed] hover:bg-[#12121a] transition-all"
-            title="Settings"
+            title={t('nav.settings')}
           >
             {'\u2699'}
           </button>
@@ -503,9 +514,9 @@ function AppContent() {
             onClick={handleRunCode}
             disabled={!fileContent}
             className="px-3 py-1 bg-[#22c55e] hover:bg-[#16a34a] disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium transition-colors"
-            title="Run code"
+            title={t('nav.run')}
           >
-            {'\u25B6'} Run
+            {'\u25B6'} {t('nav.run')}
           </button>
         </div>
       </header>
@@ -558,7 +569,7 @@ function AppContent() {
                     : 'text-[#8888a0] hover:text-[#e4e4ed]'
                 }`}
               >
-                {'\u{1F4AC}'} Chat
+                {'\u{1F4AC}'} {t('editor.tab.chat')}
               </button>
               <div className="flex-1" />
               <button
@@ -566,7 +577,7 @@ function AppContent() {
                 disabled={!fileModified}
                 className="px-2 py-0.5 text-xs text-[#8888a0] hover:text-[#e4e4ed] disabled:opacity-30 transition-colors"
               >
-                Save
+                {t('common.save')}
               </button>
             </div>
           )}
@@ -596,7 +607,7 @@ function AppContent() {
 
       {/* === Status Bar === */}
       <StatusBar
-        provider={currentProvider?.name || 'Unknown'}
+        provider={currentProvider?.name || t('status.unknown')}
         model={selectedModel}
         loading={loading}
         showSidebar={showSidebar}
@@ -608,19 +619,19 @@ function AppContent() {
       {showNewFile && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" role="dialog" aria-label="New file">
           <div className="bg-[#12121a] border border-[#2a2a3e] rounded-2xl p-6 w-96 shadow-2xl">
-            <h3 className="text-sm font-bold text-[#e4e4ed] mb-4">Create New File</h3>
+            <h3 className="text-sm font-bold text-[#e4e4ed] mb-4">{t('newFile.title')}</h3>
             <input
               value={newFileName}
               onChange={(e) => setNewFileName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateFile()}
-              placeholder="filename.py"
+              placeholder={t('newFile.placeholder')}
               className="w-full bg-[#1a1a2e] border border-[#2a2a3e] rounded-xl px-3 py-2.5 text-sm text-[#e4e4ed] placeholder-[#555570] focus:outline-none focus:border-[#6366f1] transition-colors"
               autoFocus
               aria-label="New file name"
             />
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowNewFile(false)} className="px-4 py-2 text-xs text-[#8888a0] hover:text-[#e4e4ed] transition-colors">Cancel</button>
-              <button onClick={handleCreateFile} className="px-4 py-2 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-xl text-xs font-medium transition-colors">Create</button>
+              <button onClick={() => setShowNewFile(false)} className="px-4 py-2 text-xs text-[#8888a0] hover:text-[#e4e4ed] transition-colors">{t('common.cancel')}</button>
+              <button onClick={handleCreateFile} className="px-4 py-2 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-xl text-xs font-medium transition-colors">{t('newFile.create')}</button>
             </div>
           </div>
         </div>
@@ -631,7 +642,7 @@ function AppContent() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" role="dialog" aria-label="Settings">
           <div className="bg-[#12121a] border border-[#2a2a3e] rounded-2xl p-6 w-[560px] max-h-[80vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-[#e4e4ed]">{'\u2699'} Model Providers</h3>
+              <h3 className="text-sm font-bold text-[#e4e4ed]">{'\u2699'} {t('settings.title')}</h3>
               <button onClick={() => setShowSettings(false)} className="text-[#8888a0] hover:text-[#e4e4ed] text-lg transition-colors">{'\u2715'}</button>
             </div>
 
@@ -647,7 +658,7 @@ function AppContent() {
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                         p.api_key_set ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-[#f59e0b]/10 text-[#f59e0b]'
                       }`}>
-                        {p.api_key_set ? 'Configured' : 'No Key'}
+                        {p.api_key_set ? t('settings.configured') : t('settings.noKey')}
                       </span>
                     </div>
                     <div className="text-xs text-[#8888a0] mt-0.5 truncate">{p.base_url}</div>
@@ -656,7 +667,7 @@ function AppContent() {
                     onClick={() => handleOpenConfig(p)}
                     className="px-3 py-1.5 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-lg text-xs font-medium transition-colors shrink-0 ml-3"
                   >
-                    Configure
+                    {t('settings.configure')}
                   </button>
                 </div>
               ))}
@@ -670,13 +681,13 @@ function AppContent() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60]" role="dialog" aria-label="Provider config">
           <div className="bg-[#12121a] border border-[#2a2a3e] rounded-2xl p-6 w-[480px] shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-[#e4e4ed]">Configure {configProvider.name}</h3>
+              <h3 className="text-sm font-bold text-[#e4e4ed]">{t('config.title', { name: configProvider.name })}</h3>
               <button onClick={() => setConfigProvider(null)} className="text-[#8888a0] hover:text-[#e4e4ed] text-lg transition-colors">{'\u2715'}</button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-[#8888a0] mb-1 font-medium">API Base URL</label>
+                <label className="block text-xs text-[#8888a0] mb-1 font-medium">{t('config.baseUrl')}</label>
                 <input
                   value={configBaseUrl}
                   onChange={(e) => setConfigBaseUrl(e.target.value)}
@@ -686,21 +697,21 @@ function AppContent() {
               </div>
 
               <div>
-                <label className="block text-xs text-[#8888a0] mb-1 font-medium">API Key</label>
+                <label className="block text-xs text-[#8888a0] mb-1 font-medium">{t('config.apiKey')}</label>
                 <input
                   value={configApiKey}
                   onChange={(e) => setConfigApiKey(e.target.value)}
                   type="password"
                   className="w-full bg-[#1a1a2e] border border-[#2a2a3e] rounded-xl px-3 py-2.5 text-sm text-[#e4e4ed] focus:outline-none focus:border-[#6366f1] transition-colors"
-                  placeholder={configProvider.api_key_set ? '•••••••• (leave blank to keep)' : 'sk-...'}
+                  placeholder={configProvider.api_key_set ? t('config.apiKeyPlaceholder') : 'sk-...'}
                 />
                 <p className="text-xs text-[#555570] mt-1">
-                  Or set <code className="px-1 py-0.5 bg-[#1a1a2e] rounded">{configProvider.api_key_env}</code> in .env
+                  {t('config.envHint', { env: configProvider.api_key_env })}
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs text-[#8888a0] mb-1 font-medium">Available Models</label>
+                <label className="block text-xs text-[#8888a0] mb-1 font-medium">{t('config.models')}</label>
                 <div className="flex flex-wrap gap-1">
                   {configProvider.models.map((m) => (
                     <span key={m.id} className="px-2 py-1 bg-[#1a1a2e] border border-[#2a2a3e] rounded-lg text-xs text-[#c0c0d0]">
@@ -716,7 +727,7 @@ function AppContent() {
                     ? 'bg-[#22c55e]/5 border-[#22c55e]/20 text-[#22c55e]'
                     : 'bg-[#ef4444]/5 border-[#ef4444]/20 text-[#ef4444]'
                 }`}>
-                  {testResult.success ? '\u2705 Connection successful!' : `\u274C ${testResult.error}`}
+                  {testResult.success ? t('config.testSuccess') : `\u274C ${testResult.error}`}
                 </div>
               )}
 
@@ -726,20 +737,20 @@ function AppContent() {
                   disabled={testing}
                   className="px-4 py-2 bg-[#1a1a2e] border border-[#2a2a3e] text-[#c0c0d0] hover:text-[#e4e4ed] rounded-xl text-xs font-medium transition-colors disabled:opacity-40"
                 >
-                  {testing ? 'Testing...' : '\u{1F50D} Test Connection'}
+                  {testing ? t('config.testing') : t('config.test')}
                 </button>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setConfigProvider(null)}
                     className="px-4 py-2 text-xs text-[#8888a0] hover:text-[#e4e4ed] transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleSaveConfig}
                     className="px-4 py-2 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-xl text-xs font-medium transition-colors"
                   >
-                    Save
+                    {t('common.save')}
                   </button>
                 </div>
               </div>
@@ -754,9 +765,11 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <ToastProvider>
-        <AppContent />
-      </ToastProvider>
+      <I18nProvider>
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
+      </I18nProvider>
     </ErrorBoundary>
   )
 }

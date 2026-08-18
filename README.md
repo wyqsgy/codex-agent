@@ -25,6 +25,16 @@
 
 LLM 通过 **原生 Function Calling** 调用安全工具（SAST 扫描、密钥检测、依赖漏洞检查），在多轮工具调用循环中主动发现、验证并修复代码中的安全问题——而不是简单地输出一段提示文本。
 
+## 📸 功能展示
+
+| 中文主界面 | 中英双语切换 |
+|:-:|:-:|
+| <img src="docs/screenshots/codex-dashboard-zh.png" width="440" alt="中文主界面" /> | <img src="docs/screenshots/codex-dashboard-en.png" width="440" alt="英文界面" /> |
+
+| 多模型提供商配置 | 代码编辑器 / 文件浏览器 |
+|:-:|:-:|
+| <img src="docs/screenshots/codex-settings-zh.png" width="440" alt="提供商配置" /> | <img src="docs/screenshots/codex-editor-zh.png" width="440" alt="代码编辑器与文件浏览器" /> |
+
 ## ✨ 项目亮点
 
 - **自主安全审计 Agent**：LLM 通过 Function Calling 自主规划审计流程（探测 → 扫描 → 验证 → 修复），最大 8 轮迭代

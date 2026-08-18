@@ -8,11 +8,16 @@ import type { StreamEvent } from '../api'
 import MermaidDiagram from './MermaidDiagram'
 import SecurityReport from './SecurityReport'
 import type { ScanResult, DependencyResult, SecretFinding } from '../types'
+import { useI18n } from '../i18n'
 
 // ---------------------------------------------------------------------------
 // 会话导出工具
 // ---------------------------------------------------------------------------
-function exportConversation(messages: ChatMessage[], format: 'markdown' | 'json', title?: string) {
+function exportConversation(
+  messages: ChatMessage[],
+  format: 'markdown' | 'json',
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
   const filename = `codex-export-${timestamp}.${format === 'json' ? 'json' : 'md'}`
 
@@ -26,16 +31,15 @@ function exportConversation(messages: ChatMessage[], format: 'markdown' | 'json'
   }
 
   // Markdown export
-  let md = `# CodeX Agent Conversation\n\n`
-  if (title) md += `> ${title}\n\n`
-  md += `_Exported at ${new Date().toLocaleString()}_\n\n---\n\n`
+  let md = `# ${t('export.title')}\n\n`
+  md += `_${t('export.exportedAt', { time: new Date().toLocaleString() })}_\n\n---\n\n`
   for (const msg of messages) {
     if (msg.role === 'system') continue
-    const role = msg.role === 'user' ? '**You**' : '**CodeX**'
+    const role = msg.role === 'user' ? `**${t('export.you')}**` : `**${t('export.codex')}**`
     md += `### ${role}\n\n`
     if (msg.content) md += `${msg.content}\n\n`
     if (msg.toolCalls?.length) {
-      md += `<details>\n<summary>Tool Calls (${msg.toolCalls.length})</summary>\n\n`
+      md += `<details>\n<summary>${t('export.toolCalls', { n: msg.toolCalls.length })}</summary>\n\n`
       for (const tc of msg.toolCalls) {
         md += `- **${tc.tool}** \`${tc.result?.success ? 'OK' : 'ERR'}\`\n`
         md += `  - Args: \`${JSON.stringify(tc.args)}\`\n`
@@ -75,6 +79,7 @@ const TOOL_ICONS: Record<string, string> = {
 }
 
 const ToolCallBadge = memo(function ToolCallBadge({ call }: { call: ToolCall }) {
+  const { t } = useI18n()
   const [expanded, setExpanded] = useState(false)
   const isSuccess = call.result?.success
   return (
@@ -93,9 +98,9 @@ const ToolCallBadge = memo(function ToolCallBadge({ call }: { call: ToolCall }) 
       </button>
       {expanded && (
         <div className="mt-1.5 ml-2 p-2.5 bg-[#0d0d14] border border-[#2a2a3e] rounded-lg text-xs font-mono overflow-x-auto max-h-52 overflow-y-auto">
-          <div className="text-[#8888a0] mb-1">Args</div>
+          <div className="text-[#8888a0] mb-1">{t('tool.args')}</div>
           <pre className="text-[#c0c0d0] text-[11px] leading-relaxed">{JSON.stringify(call.args, null, 2)}</pre>
-          <div className="text-[#8888a0] mt-2 mb-1">Result</div>
+          <div className="text-[#8888a0] mt-2 mb-1">{t('tool.result')}</div>
           <pre className={`text-[11px] leading-relaxed ${isSuccess ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
             {typeof call.result?.result === 'string'
               ? call.result.result
@@ -117,6 +122,7 @@ const CodeBlockView = memo(function CodeBlockView({
   block: CodeBlock
   onApply?: (code: string, lang: string) => void
 }) {
+  const { t } = useI18n()
   const [copied, setCopied] = useState(false)
 
   // 使用 highlight.js 进行语法高亮
@@ -146,14 +152,14 @@ const CodeBlockView = memo(function CodeBlockView({
               onClick={() => onApply(block.code, block.language)}
               className="text-[#6366f1] hover:text-[#818cf8] text-[10px] font-medium transition-colors"
             >
-              Apply
+              {t('code.apply')}
             </button>
           )}
           <button
             onClick={handleCopy}
             className="text-[#8888a0] hover:text-[#e4e4ed] text-[10px] transition-colors"
           >
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? t('code.copied') : t('code.copy')}
           </button>
         </div>
       </div>
@@ -183,7 +189,7 @@ function MarkdownRenderer({ content }: { content: string }) {
           if (isInline) {
             return (
               <code
-                className="px-1.5 py-0.5 bg-[#1a1a2e] text-[#e4e4ed] rounded text-[13px] font-mono"
+                className="px-1.5 py-0.5 bg-[#1a1a2e] text-[#e4e4ed] rounded text-[13px] font-mono break-words"
                 {...props}
               >
                 {children}
@@ -229,7 +235,7 @@ function MarkdownRenderer({ content }: { content: string }) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#6366f1] hover:text-[#818cf8] underline underline-offset-2"
+              className="text-[#6366f1] hover:text-[#818cf8] underline underline-offset-2 break-all"
             >
               {children}
             </a>
@@ -266,7 +272,7 @@ function MarkdownRenderer({ content }: { content: string }) {
         },
         // Paragraphs
         p({ children }) {
-          return <p className="text-sm leading-relaxed my-1.5">{children}</p>
+          return <p className="text-sm leading-relaxed my-1.5 break-words">{children}</p>
         },
       }}
     >
@@ -298,7 +304,7 @@ const MessageBubble = memo(function MessageBubble({
   return (
     <div className={`mb-4 flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[88%] rounded-2xl px-4 py-3 ${
+        className={`max-w-[88%] min-w-0 rounded-2xl px-4 py-3 ${
           isUser
             ? 'bg-gradient-to-br from-[#6366f1] to-[#4f46e5] text-white shadow-lg shadow-[#6366f1]/10'
             : 'bg-[#12121a] border border-[#2a2a3e]'
@@ -363,36 +369,36 @@ const LoadingIndicator = memo(function LoadingIndicator() {
 // Empty / Welcome State
 // ---------------------------------------------------------------------------
 const WelcomeScreen = memo(function WelcomeScreen({ onSend }: { onSend: (msg: string) => void }) {
+  const { t } = useI18n()
   const suggestions = [
-    { icon: '\u{1F6E1}', label: 'Security Audit', text: 'Perform a complete security audit of the workspace code' },
-    { icon: '\u{1F50D}', label: 'Find Secrets', text: 'Scan for hardcoded API keys, tokens, and passwords' },
-    { icon: '\u{1F4E6}', label: 'Check Dependencies', text: 'Check for vulnerable dependencies in requirements.txt and package.json' },
-    { icon: '\u{1F4BB}', label: 'Create a web server', text: 'Write a secure Flask web server with proper input validation' },
-    { icon: '\u{1F527}', label: 'Fix a vulnerability', text: 'I have a SQL injection vulnerability in my code, help me fix it' },
-    { icon: '\u{1F4DD}', label: 'Code Review', text: 'Review this code for security issues and best practices violations' },
+    { icon: '\u{1F6E1}', label: t('suggest.audit.label'), text: t('suggest.audit.text') },
+    { icon: '\u{1F50D}', label: t('suggest.secrets.label'), text: t('suggest.secrets.text') },
+    { icon: '\u{1F4E6}', label: t('suggest.deps.label'), text: t('suggest.deps.text') },
+    { icon: '\u{1F4BB}', label: t('suggest.server.label'), text: t('suggest.server.text') },
+    { icon: '\u{1F527}', label: t('suggest.fix.label'), text: t('suggest.fix.text') },
+    { icon: '\u{1F4DD}', label: t('suggest.review.label'), text: t('suggest.review.text') },
   ]
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-4">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6366f1] to-[#4f46e5] flex items-center justify-center text-2xl mb-5 shadow-lg shadow-[#6366f1]/20">
+    <div className="flex flex-col items-center justify-center h-full text-center px-6 py-4 overflow-y-auto">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6366f1] to-[#4f46e5] flex items-center justify-center text-2xl mb-5 shadow-lg shadow-[#6366f1]/20 shrink-0">
         {'\u{1F6E1}'}
       </div>
-      <h1 className="text-2xl font-bold text-[#e4e4ed] mb-2">CodeX Security Agent</h1>
-      <p className="text-sm text-[#8888a0] max-w-md mb-8 leading-relaxed">
-        AI-powered application security auditor. SAST scanning, secret detection,
-        dependency vulnerability checks, and automated security code fixes.
+      <h1 className="text-2xl font-bold text-[#e4e4ed] mb-3">{t('brand.full')}</h1>
+      <p className="text-sm text-[#8888a0] max-w-2xl mb-6 leading-relaxed">
+        {t('welcome.subtitle')}
       </p>
-      <div className="grid grid-cols-2 gap-2 max-w-lg w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl w-full">
         {suggestions.map((s) => (
           <button
             key={s.text}
             onClick={() => onSend(s.text)}
-            className="flex items-center gap-2 px-3 py-2.5 bg-[#12121a] border border-[#2a2a3e] rounded-xl text-sm text-[#c0c0d0] hover:border-[#6366f1]/50 hover:bg-[#1a1a2e] transition-all text-left group"
+            className="flex items-start gap-2.5 px-3.5 py-3 bg-[#12121a] border border-[#2a2a3e] rounded-xl text-sm text-[#c0c0d0] hover:border-[#6366f1]/50 hover:bg-[#1a1a2e] transition-all text-left group min-h-[76px]"
           >
-            <span className="text-base shrink-0 group-hover:scale-110 transition-transform">{s.icon}</span>
-            <div>
-              <div className="text-xs font-medium text-[#e4e4ed]">{s.label}</div>
-              <div className="text-[10px] text-[#8888a0] truncate">{s.text}</div>
+            <span className="text-base shrink-0 leading-none mt-0.5 group-hover:scale-110 transition-transform">{s.icon}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-[#e4e4ed] leading-snug">{s.label}</div>
+              <div className="text-[11px] text-[#8888a0] leading-snug line-clamp-2 mt-0.5">{s.text}</div>
             </div>
           </button>
         ))}
@@ -412,6 +418,7 @@ export default function ChatPanel({
   onApplyCode,
   onSecurityScan,
 }: ChatPanelProps) {
+  const { t } = useI18n()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -467,9 +474,9 @@ export default function ChatPanel({
               <button
                 onClick={onSecurityScan}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/30 rounded-lg text-[11px] text-[#ef4444] font-medium transition-all"
-                title="Run SAST scan, secret detection, and dependency check"
+                title={t('scan.title')}
               >
-                {'\u{1F6E1}'} Security Scan
+                {t('scan.button')}
               </button>
             </div>
           )}
@@ -479,21 +486,21 @@ export default function ChatPanel({
             value={input}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            placeholder="Ask CodeX anything... (Shift+Enter for new line)"
+            placeholder={t('chat.placeholder')}
             rows={1}
             className="flex-1 bg-[#12121a] border border-[#2a2a3e] rounded-2xl px-4 py-2.5 text-sm text-[#e4e4ed] placeholder-[#555570] resize-none focus:outline-none focus:border-[#6366f1] focus:ring-1 focus:ring-[#6366f1]/20 transition-all"
             aria-label="Chat message input"
           />
           {loading ? (
             <button
-              onClick={onStop}
-              className="px-5 py-2.5 bg-[#ef4444] hover:bg-[#dc2626] text-white rounded-2xl text-sm font-medium transition-all shadow-lg shadow-[#ef4444]/20"
-              aria-label="Stop generating"
-              title="Stop generating"
-            >
+                onClick={onStop}
+                className="px-5 py-2.5 bg-[#ef4444] hover:bg-[#dc2626] text-white rounded-2xl text-sm font-medium transition-all shadow-lg shadow-[#ef4444]/20"
+                aria-label={t('chat.stop')}
+                title={t('chat.stop')}
+              >
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 bg-white rounded-sm" />
-                Stop
+                {t('chat.stop')}
               </span>
             </button>
           ) : (
@@ -504,31 +511,31 @@ export default function ChatPanel({
               aria-label="Send message"
             >
               <span className="flex items-center gap-1">
-                Send <span className="text-[10px]">{'\u23CE'}</span>
+                {t('chat.send')} <span className="text-[10px]">{'\u23CE'}</span>
               </span>
             </button>
           )}
         </div>
         <div className="flex items-center justify-between mt-2">
-          <p className="text-[10px] text-[#555570]">
-            CodeX may produce inaccurate information. Verify important outputs.
+          <p className="text-[11px] text-[#666680] whitespace-nowrap overflow-hidden text-ellipsis">
+            {t('chat.disclaimer')}
           </p>
           {messages.length > 0 && (
             <div className="flex items-center gap-1">
               <button
-                onClick={() => exportConversation(messages, 'markdown')}
+                onClick={() => exportConversation(messages, 'markdown', t)}
                 className="text-[10px] text-[#555570] hover:text-[#818cf8] transition-colors px-1"
-                title="Export as Markdown"
+                title={t('export.markdown')}
               >
-                Export .md
+                {t('chat.exportMd')}
               </button>
               <span className="text-[#2a2a3e] text-[10px]">|</span>
               <button
-                onClick={() => exportConversation(messages, 'json')}
+                onClick={() => exportConversation(messages, 'json', t)}
                 className="text-[10px] text-[#555570] hover:text-[#818cf8] transition-colors px-1"
-                title="Export as JSON"
+                title={t('export.json')}
               >
-                Export .json
+                {t('chat.exportJson')}
               </button>
             </div>
           )}

@@ -1,5 +1,6 @@
 import { memo, useState } from 'react'
 import type { SecurityFinding, ScanResult, DependencyResult, SecretFinding } from '../types'
+import { useI18n } from '../i18n'
 
 // ---------------------------------------------------------------------------
 // 严重级别颜色
@@ -13,11 +14,12 @@ const SEVERITY_COLORS: Record<string, { bg: string; text: string; border: string
 }
 
 function SeverityBadge({ severity }: { severity: string }) {
+  const { t } = useI18n()
   const c = SEVERITY_COLORS[severity] || SEVERITY_COLORS.info
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${c.bg} ${c.text} border ${c.border}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
-      {severity}
+      {t(`severity.${severity}`)}
     </span>
   )
 }
@@ -30,6 +32,7 @@ interface ScanResultViewProps {
 }
 
 const ScanResultView = memo(function ScanResultView({ data }: ScanResultViewProps) {
+  const { t } = useI18n()
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const grouped = groupBySeverity(data.findings)
 
@@ -47,12 +50,12 @@ const ScanResultView = memo(function ScanResultView({ data }: ScanResultViewProp
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#1a1a2e] border-b border-[#2a2a3e]">
         <div className="flex items-center gap-2">
           <span className="text-[14px]">🛡️</span>
-          <span className="text-xs font-semibold text-[#e4e4ed]">SAST Scan Results</span>
+          <span className="text-xs font-semibold text-[#e4e4ed]">{t('sec.sast.title')}</span>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-[#8888a0]">
-          <span>{data.stats.files_scanned} files</span>
+          <span>{t('sec.files', { n: data.stats.files_scanned })}</span>
           <span>·</span>
-          <span>{data.stats.total_findings} findings</span>
+          <span>{t('sec.findings', { n: data.stats.total_findings })}</span>
         </div>
       </div>
 
@@ -69,7 +72,7 @@ const ScanResultView = memo(function ScanResultView({ data }: ScanResultViewProp
       {/* Findings */}
       {data.findings.length === 0 ? (
         <div className="px-4 py-6 text-center text-xs text-[#555570]">
-          No vulnerabilities detected. The codebase looks clean.
+          {t('sec.sast.empty')}
         </div>
       ) : (
         <div className="max-h-[400px] overflow-y-auto divide-y divide-[#2a2a3e]/50">
@@ -86,9 +89,9 @@ const ScanResultView = memo(function ScanResultView({ data }: ScanResultViewProp
                 </span>
                 <SeverityBadge severity={f.severity} />
                 <span className="text-xs text-[#e4e4ed] flex-1 truncate">
-                  {f.category || f.type || 'Unknown'}
+                  {f.category || f.type || t('sec.unknown')}
                 </span>
-                <span className="text-[10px] text-[#555570] font-mono">
+                <span className="text-[10px] text-[#555570] font-mono shrink-0 max-w-[45%] truncate">
                   {f.file}:{f.line}
                 </span>
               </div>
@@ -101,7 +104,7 @@ const ScanResultView = memo(function ScanResultView({ data }: ScanResultViewProp
                     {f.snippet || f.context || ''}
                   </pre>
                   {f.source && f.source !== 'built-in patterns' && (
-                    <span className="text-[10px] text-[#555570] italic">Source: {f.source}</span>
+                    <span className="text-[10px] text-[#555570] italic">{t('sec.source', { src: f.source })}</span>
                   )}
                 </div>
               )}
@@ -121,6 +124,7 @@ interface SecretsResultViewProps {
 }
 
 const SecretsResultView = memo(function SecretsResultView({ data }: SecretsResultViewProps) {
+  const { t } = useI18n()
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const toggle = (i: number) => {
     setExpanded(prev => {
@@ -135,14 +139,14 @@ const SecretsResultView = memo(function SecretsResultView({ data }: SecretsResul
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#ef4444]/10 border-b border-[#ef4444]/20">
         <div className="flex items-center gap-2">
           <span className="text-[14px]">🔑</span>
-          <span className="text-xs font-semibold text-[#ef4444]">Hardcoded Secrets Detected</span>
+          <span className="text-xs font-semibold text-[#ef4444]">{t('sec.secrets.title')}</span>
         </div>
-        <span className="text-[10px] text-[#ef4444]/70">{data.length} found</span>
+        <span className="text-[10px] text-[#ef4444]/70">{t('sec.found', { n: data.length })}</span>
       </div>
 
       {data.length === 0 ? (
         <div className="px-4 py-6 text-center text-xs text-[#555570]">
-          No hardcoded secrets found. Good credential hygiene.
+          {t('sec.secrets.empty')}
         </div>
       ) : (
         <div className="max-h-[400px] overflow-y-auto divide-y divide-[#2a2a3e]/50">
@@ -159,14 +163,14 @@ const SecretsResultView = memo(function SecretsResultView({ data }: SecretsResul
                 </span>
                 <SeverityBadge severity={f.severity} />
                 <span className="text-xs text-[#e4e4ed] flex-1 truncate">{f.type}</span>
-                <span className="text-[10px] text-[#555570] font-mono">
+                <span className="text-[10px] text-[#555570] font-mono shrink-0 max-w-[45%] truncate">
                   {f.file}:{f.line}
                 </span>
               </div>
               {expanded.has(i) && (
                 <div className="mt-2 ml-5 pl-3 border-l border-[#ef4444]/20 space-y-1.5">
                   <div className="flex gap-2">
-                    <span className="text-[10px] text-[#555570] shrink-0">Match:</span>
+                    <span className="text-[10px] text-[#555570] shrink-0">{t('sec.match')}</span>
                     <code className="text-[11px] text-[#ef4444] break-all">{f.match}</code>
                   </div>
                   <pre className="text-[11px] text-[#8888a0] bg-[#12121a] px-2 py-1 rounded overflow-x-auto">
@@ -190,6 +194,7 @@ interface DepsResultViewProps {
 }
 
 const DepsResultView = memo(function DepsResultView({ data }: DepsResultViewProps) {
+  const { t } = useI18n()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const toggle = (key: string) => {
     setExpanded(prev => {
@@ -210,14 +215,14 @@ const DepsResultView = memo(function DepsResultView({ data }: DepsResultViewProp
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#f59e0b]/10 border-b border-[#f59e0b]/20">
         <div className="flex items-center gap-2">
           <span className="text-[14px]">📦</span>
-          <span className="text-xs font-semibold text-[#f59e0b]">Dependency Vulnerabilities</span>
+          <span className="text-xs font-semibold text-[#f59e0b]">{t('sec.deps.title')}</span>
         </div>
-        <span className="text-[10px] text-[#f59e0b]/70">{allFindings.length} issues</span>
+        <span className="text-[10px] text-[#f59e0b]/70">{t('sec.issues', { n: allFindings.length })}</span>
       </div>
 
       {allFindings.length === 0 ? (
         <div className="px-4 py-6 text-center text-xs text-[#555570]">
-          No known dependency vulnerabilities detected.
+          {t('sec.deps.empty')}
         </div>
       ) : (
         <div className="max-h-[400px] overflow-y-auto divide-y divide-[#2a2a3e]/50">
@@ -346,6 +351,7 @@ const SecurityReport = memo(function SecurityReport({
   secretsResult,
   depsResult,
 }: SecurityReportProps) {
+  const { t } = useI18n()
   const hasData = scanResult || secretsResult || depsResult
 
   if (!hasData) return null
@@ -363,7 +369,7 @@ const SecurityReport = memo(function SecurityReport({
             onClick={() => exportToHTML(scanResult || null, secretsResult || null, depsResult || null)}
             className="text-[10px] text-[#555570] hover:text-[#818cf8] transition-colors px-2 py-1"
           >
-            Export HTML Report
+            {t('sec.export')}
           </button>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, memo } from 'react'
 import { format } from 'date-fns'
 import { listConversations, deleteConversation } from '../api'
+import { useI18n } from '../i18n'
 
 export interface ConversationInfo {
   id: string
@@ -28,6 +29,7 @@ const ConversationItem = memo(function ConversationItem({
   onSelect: (id: string) => void
   onDelete: (id: string) => void
 }) {
+  const { t } = useI18n()
   const [confirming, setConfirming] = useState(false)
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -53,7 +55,7 @@ const ConversationItem = memo(function ConversationItem({
       <div className="flex items-start gap-2">
         <span className="text-xs mt-0.5 shrink-0">{'\u{1F4AC}'}</span>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium truncate">{conv.title || 'New Conversation'}</div>
+          <div className="text-xs font-medium truncate">{conv.title || t('conv.defaultTitle')}</div>
           <div className="text-[10px] text-[#555570] mt-0.5">
             {format(new Date(conv.updated_at * 1000), 'MM/dd HH:mm')}
           </div>
@@ -65,7 +67,7 @@ const ConversationItem = memo(function ConversationItem({
               ? 'text-[#ef4444]'
               : 'text-[#555570] opacity-0 group-hover:opacity-100 hover:text-[#ef4444]'
           }`}
-          title={confirming ? 'Click again to confirm' : 'Delete'}
+          title={confirming ? t('conv.confirmDelete') : t('conv.delete')}
         >
           {confirming ? '\u2717' : '\u{1F5D1}'}
         </button>
@@ -75,6 +77,7 @@ const ConversationItem = memo(function ConversationItem({
 })
 
 export default function ConversationSidebar({ activeId, onSelect, onNew, onRefresh, refreshKey }: Props) {
+  const { t } = useI18n()
   const [conversations, setConversations] = useState<ConversationInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -118,12 +121,12 @@ export default function ConversationSidebar({ activeId, onSelect, onNew, onRefre
       <div className="px-3 py-3 border-b border-[#2a2a3e]">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-[#8888a0] uppercase tracking-wider">
-            Conversations
+            {t('conv.title')}
           </span>
           <button
             onClick={onNew}
             className="w-6 h-6 flex items-center justify-center rounded-md bg-[#6366f1] hover:bg-[#818cf8] text-white text-sm transition-colors"
-            title="New conversation"
+            title={t('conv.new')}
           >
             +
           </button>
@@ -132,7 +135,7 @@ export default function ConversationSidebar({ activeId, onSelect, onNew, onRefre
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search..."
+            placeholder={t('conv.search')}
             className="w-full bg-[#12121a] border border-[#2a2a3e] rounded-lg px-2.5 py-1.5 text-xs text-[#e4e4ed] placeholder-[#555570] focus:outline-none focus:border-[#6366f1] transition-colors"
           />
           {search && (
@@ -158,13 +161,13 @@ export default function ConversationSidebar({ activeId, onSelect, onNew, onRefre
           <div className="text-center py-8">
             <div className="text-2xl mb-2">{'\u{1F4AD}'}</div>
             <p className="text-xs text-[#8888a0]">
-              {search ? 'No matching conversations' : 'No conversations yet'}
+              {search ? t('conv.noMatch') : t('conv.empty')}
             </p>
             <button
               onClick={onNew}
               className="mt-3 px-3 py-1.5 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-lg text-xs transition-colors"
             >
-              Start a new chat
+              {t('conv.start')}
             </button>
           </div>
         ) : (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchFiles, readFile, writeFile, deleteFile } from '../api'
 import type { FileItem } from '../types'
+import { useI18n } from '../i18n'
 
 interface FileExplorerProps {
   currentFile: string | null
@@ -10,6 +11,7 @@ interface FileExplorerProps {
 }
 
 export default function FileExplorer({ currentFile, onFileSelect, onFileDeleted, onNewFile }: FileExplorerProps) {
+  const { t } = useI18n()
   const [files, setFiles] = useState<FileItem[]>([])
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set(['']))
   const [loading, setLoading] = useState(false)
@@ -52,7 +54,7 @@ export default function FileExplorer({ currentFile, onFileSelect, onFileDeleted,
 
   const handleDelete = async (e: React.MouseEvent, path: string) => {
     e.stopPropagation()
-    if (!confirm(`确定删除 ${path}?`)) return
+    if (!confirm(t('file.confirmDelete', { path }))) return
     try {
       await deleteFile(path)
       if (currentFile === path) onFileDeleted()
@@ -72,26 +74,26 @@ export default function FileExplorer({ currentFile, onFileSelect, onFileDeleted,
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#12121a] border-r border-[#2a2a3e]">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a2a3e]">
-        <span className="text-xs font-semibold text-[#8888a0] uppercase tracking-wider">文件浏览器</span>
+    <div className="h-full flex flex-col bg-[#0d0d14] border-r border-[#2a2a3e]">
+      <div className="flex items-center justify-between px-3 py-3 border-b border-[#2a2a3e]">
+        <span className="text-xs font-semibold text-[#8888a0] uppercase tracking-wider">{t('file.title')}</span>
         <button
           onClick={onNewFile}
-          className="text-[#8888a0] hover:text-[#e4e4ed] text-lg leading-none"
-          title="新建文件"
+          className="w-6 h-6 flex items-center justify-center rounded-md bg-[#6366f1] hover:bg-[#818cf8] text-white text-sm transition-colors"
+          title={t('file.new')}
         >
           +
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto py-1">
+      <div className="flex-1 overflow-y-auto p-2">
         {loading ? (
-          <div className="px-3 py-2 text-xs text-[#8888a0]">加载中...</div>
+          <div className="px-3 py-2 text-xs text-[#8888a0]">{t('file.loading')}</div>
         ) : (
           files.map((file) => (
             <div
               key={file.path}
               onClick={() => handleFileClick(file)}
-              className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer text-sm hover:bg-[#1a1a2e] group ${
+              className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer text-sm rounded-lg transition-colors hover:bg-[#1a1a2e] group ${
                 currentFile === file.path ? 'bg-[#1a1a2e] text-[#818cf8]' : 'text-[#c0c0d0]'
               }`}
             >
@@ -103,7 +105,7 @@ export default function FileExplorer({ currentFile, onFileSelect, onFileDeleted,
                 <button
                   onClick={(e) => handleDelete(e, file.path)}
                   className="opacity-0 group-hover:opacity-100 text-[#8888a0] hover:text-[#ef4444] text-xs"
-                  title="删除"
+                  title={t('file.delete')}
                 >
                   ✕
                 </button>
@@ -112,8 +114,10 @@ export default function FileExplorer({ currentFile, onFileSelect, onFileDeleted,
           ))
         )}
         {files.length === 0 && !loading && (
-          <div className="px-3 py-4 text-xs text-[#8888a0] text-center">
-            工作区为空<br />点击 + 创建文件
+          <div className="px-3 py-6 text-xs text-[#8888a0] text-center leading-relaxed">
+            {t('file.empty')}
+            <br />
+            {t('file.emptyHint')}
           </div>
         )}
       </div>
