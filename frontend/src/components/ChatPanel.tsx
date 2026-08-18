@@ -6,6 +6,8 @@ import 'highlight.js/styles/github-dark.css'
 import type { ChatMessage, ToolCall, CodeBlock } from '../types'
 import type { StreamEvent } from '../api'
 import MermaidDiagram from './MermaidDiagram'
+import SecurityReport from './SecurityReport'
+import type { ScanResult, DependencyResult, SecretFinding } from '../types'
 
 // ---------------------------------------------------------------------------
 // 会话导出工具
@@ -61,6 +63,7 @@ interface ChatPanelProps {
   onStop?: () => void
   onApplyCode?: (code: string, lang: string) => void
   conversationId?: string
+  onSecurityScan?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +288,13 @@ const MessageBubble = memo(function MessageBubble({
   const isUser = msg.role === 'user'
   const isEmpty = !msg.content && (!msg.toolCalls || msg.toolCalls.length === 0)
 
+  // 提取安全扫描结果 —— 安全工具由 SecurityReport 组件专门渲染
+  const securityToolNames = new Set(['scan_vulnerability', 'detect_secrets', 'check_dependencies'])
+  const scanResult = msg.toolCalls?.find((c) => c.tool === 'scan_vulnerability')?.result?.result as ScanResult | undefined
+  const secretsResult = msg.toolCalls?.find((c) => c.tool === 'detect_secrets')?.result?.result as SecretFinding[] | undefined
+  const depsResult = msg.toolCalls?.find((c) => c.tool === 'check_dependencies')?.result?.result as DependencyResult | undefined
+  const normalToolCalls = (msg.toolCalls || []).filter((c) => !securityToolNames.has(c.tool))
+
   return (
     <div className={`mb-4 flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -305,9 +315,9 @@ const MessageBubble = memo(function MessageBubble({
         )}
 
         {/* Tool calls */}
-        {msg.toolCalls && msg.toolCalls.length > 0 && (
+        {normalToolCalls.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
-            {msg.toolCalls.map((call, i) => (
+            {normalToolCalls.map((call, i) => (
               <ToolCallBadge key={i} call={call} />
             ))}
           </div>
@@ -319,6 +329,9 @@ const MessageBubble = memo(function MessageBubble({
             <MarkdownRenderer content={msg.content} />
           </div>
         )}
+
+        {/* Security scan result */}
+        <SecurityReport scanResult={scanResult} secretsResult={secretsResult} depsResult={depsResult} />
       </div>
     </div>
   )
@@ -351,23 +364,23 @@ const LoadingIndicator = memo(function LoadingIndicator() {
 // ---------------------------------------------------------------------------
 const WelcomeScreen = memo(function WelcomeScreen({ onSend }: { onSend: (msg: string) => void }) {
   const suggestions = [
-    { icon: '\u{1F4BB}', label: 'Create a Python web server', text: 'Write a Flask web server with a /health endpoint' },
-    { icon: '\u{1F4DD}', label: 'Explain this code', text: 'Explain how the Python GIL works with code examples' },
-    { icon: '\u{1F50D}', label: 'Search workspace', text: 'List all files in the workspace' },
-    { icon: '\u{1F527}', label: 'Debug a problem', text: 'I have a bug: my API returns 500 when calling /users' },
-    { icon: '\u{1F4A1}', label: 'Generate algorithm', text: 'Implement a binary search tree with insert and search' },
-    { icon: '\u{1F3D7}', label: 'Build a React component', text: 'Create a React counter component with TypeScript' },
+    { icon: '\u{1F6E1}', label: 'Security Audit', text: 'Perform a complete security audit of the workspace code' },
+    { icon: '\u{1F50D}', label: 'Find Secrets', text: 'Scan for hardcoded API keys, tokens, and passwords' },
+    { icon: '\u{1F4E6}', label: 'Check Dependencies', text: 'Check for vulnerable dependencies in requirements.txt and package.json' },
+    { icon: '\u{1F4BB}', label: 'Create a web server', text: 'Write a secure Flask web server with proper input validation' },
+    { icon: '\u{1F527}', label: 'Fix a vulnerability', text: 'I have a SQL injection vulnerability in my code, help me fix it' },
+    { icon: '\u{1F4DD}', label: 'Code Review', text: 'Review this code for security issues and best practices violations' },
   ]
 
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6366f1] to-[#4f46e5] flex items-center justify-center text-2xl mb-5 shadow-lg shadow-[#6366f1]/20">
-        {'\u{1F916}'}
+        {'\u{1F6E1}'}
       </div>
-      <h1 className="text-2xl font-bold text-[#e4e4ed] mb-2">CodeX Agent</h1>
+      <h1 className="text-2xl font-bold text-[#e4e4ed] mb-2">CodeX Security Agent</h1>
       <p className="text-sm text-[#8888a0] max-w-md mb-8 leading-relaxed">
-        Your AI-powered coding assistant. Write, debug, execute, and manage code with
-        multi-model support and real-time streaming.
+        AI-powered application security auditor. SAST scanning, secret detection,
+        dependency vulnerability checks, and automated security code fixes.
       </p>
       <div className="grid grid-cols-2 gap-2 max-w-lg w-full">
         {suggestions.map((s) => (
@@ -397,6 +410,7 @@ export default function ChatPanel({
   loading,
   onStop,
   onApplyCode,
+  onSecurityScan,
 }: ChatPanelProps) {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -447,9 +461,20 @@ export default function ChatPanel({
       </div>
 
       {/* Input area */}
-      <div className="border-t border-[#2a2a3e] p-3 bg-[#0a0a0f]">
-        <div className="flex gap-2 items-end max-w-4xl mx-auto">
-          <textarea
+        <div className="border-t border-[#2a2a3e] p-3 bg-[#0a0a0f]">
+          {onSecurityScan && (
+            <div className="flex gap-1.5 max-w-4xl mx-auto mb-2">
+              <button
+                onClick={onSecurityScan}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/30 rounded-lg text-[11px] text-[#ef4444] font-medium transition-all"
+                title="Run SAST scan, secret detection, and dependency check"
+              >
+                {'\u{1F6E1}'} Security Scan
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2 items-end max-w-4xl mx-auto">
+            <textarea
             ref={textareaRef}
             value={input}
             onChange={handleInput}

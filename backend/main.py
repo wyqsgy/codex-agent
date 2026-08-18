@@ -47,7 +47,7 @@ from tools import delete_file, execute_code, list_files, read_file, search_files
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("CodeX.API")
 
-APP_VERSION = "4.0.0"
+APP_VERSION = "5.0.0"
 
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX = 60
@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
     logger.info("CodeX Agent shutting down")
 
 
-app = FastAPI(title="CodeX Agent", version=APP_VERSION, lifespan=lifespan)
+app = FastAPI(title="CodeX Security Agent", version=APP_VERSION, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -127,9 +127,9 @@ async def log_middleware(request: Request, call_next):
 async def health():
     return {
         "status": "ok",
-        "workspace": WORKSPACE_DIR,
-        "name": "CodeX Agent",
+        "name": "CodeX Security Agent",
         "version": APP_VERSION,
+        "workspace": WORKSPACE_DIR,
     }
 
 

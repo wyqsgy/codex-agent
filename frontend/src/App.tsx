@@ -370,6 +370,11 @@ function AppContent() {
     }
   }, [])
 
+  // ---- Security Scan ----
+  const handleSecurityScan = useCallback(() => {
+    handleSendMessage('请对当前工作区代码执行一次完整的安全审计：1) 使用 scan_vulnerability 做 SAST 静态扫描；2) 使用 detect_secrets 检测硬编码密钥；3) 使用 check_dependencies 检查依赖漏洞。最后按严重程度汇总所有发现并给出修复建议。')
+  }, [handleSendMessage])
+
   // ---- Keyboard Shortcuts ----
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -580,8 +585,9 @@ function AppContent() {
                 onSendMessage={handleSendMessage}
                 loading={loading}
                 onStop={handleStopGeneration}
-                onApplyCode={handleApplyCode}
-                conversationId={conversationId}
+                  onApplyCode={handleApplyCode}
+                  onSecurityScan={handleSecurityScan}
+                  conversationId={conversationId}
               />
             )}
           </div>

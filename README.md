@@ -1,78 +1,97 @@
-# CodeX Agent
+# CodeX Security Agent
 
 <p align="center">
-  <strong>一个从零构建的全栈 AI 编程助手 —— 基于 Function Calling 的自主 Agent，支持多模型、流式对话、代码沙箱执行与文件管理。</strong>
+  <strong>AI 驱动的应用安全审计 Agent —— 基于 Function Calling 的自主安全审计引擎，集成 SAST 静态扫描、硬编码密钥检测与依赖漏洞检查。</strong>
 </p>
 
 <p align="center">
-  <a href="#-项目亮点"><img src="https://img.shields.io/badge/functional-Function_Calling-blueviolet" alt="function calling" /></a>
+  <a href="#-项目亮点"><img src="https://img.shields.io/badge/agent-function_calling-blueviolet" alt="function calling" /></a>
+  <a href="#-安全工具链"><img src="https://img.shields.io/badge/security-SAST_%7C_Secret_%7C_CVE-ef4444" alt="security" /></a>
   <a href="https://github.com/wyqsgy/codex-agent/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license" /></a>
+  <img src="https://img.shields.io/badge/cwe-OWASP_Top_10-orange" alt="owasp" />
   <img src="https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white" alt="python" />
   <img src="https://img.shields.io/badge/fastapi-0.115-009688?logo=fastapi&logoColor=white" alt="fastapi" />
   <img src="https://img.shields.io/badge/react-18-61dafb?logo=react&logoColor=white" alt="react" />
   <img src="https://img.shields.io/badge/typescript-5-3178c6?logo=typescript&logoColor=white" alt="typescript" />
-  <img src="https://img.shields.io/badge/vite-5-646cff?logo=vite&logoColor=white" alt="vite" />
   <img src="https://img.shields.io/badge/sqlite-3-003b57?logo=sqlite&logoColor=white" alt="sqlite" />
   <img src="https://img.shields.io/badge/docker-2496ED?logo=docker&logoColor=white" alt="docker" />
-  <img src="https://img.shields.io/badge/test_coverage-70%25-22c55e" alt="coverage" />
 </p>
 
 ---
 
 ## 项目背景
 
-CodeX Agent 不是一个"套壳 GPT"的聊天机器人。它的核心是一套**可自主决策的 Agent 引擎**：大语言模型通过 **原生 Function Calling** 感知环境（文件系统、代码运行时），规划并执行多步工具调用直到完成任务 —— 而不是简单地补全文本。
+传统的代码漏洞扫描工具（如 Semgrep、CodeQL、bandit）只能**机械地匹配已知模式**，无法理解业务上下文，也无法与开发者交互。CodeX Security Agent 将 **大语言模型的推理能力** 与 **自动化安全工具链** 结合，构建了一个能**自主规划安全审计流程、理解漏洞语义、提供可落地修复方案**的 Agent。
 
-这个项目是一次完整的**全栈工程实践**，覆盖了从 Agent 架构设计、Python 异步后端、SSE 流式传输、SQLite 持久化，到 React/TypeScript 前端、CodeMirror 编辑器、Docker 容器化与 CI/CD 的完整链路。
+LLM 通过 **原生 Function Calling** 调用安全工具（SAST 扫描、密钥检测、依赖漏洞检查），在多轮工具调用循环中主动发现、验证并修复代码中的安全问题——而不是简单地输出一段提示文本。
 
 ## ✨ 项目亮点
 
-- **原生 Function Calling Agent 循环**：LLM 通过工具调用自主规划（最大 8 轮迭代），支持指数退避重试，而非用正则解析文本"伪工具调用"
+- **自主安全审计 Agent**：LLM 通过 Function Calling 自主规划审计流程（探测 → 扫描 → 验证 → 修复），最大 8 轮迭代
+- **SAST 静态扫描**：内置 OWASP Top 10 漏洞模式（SQL 注入、命令注入、XSS、SSRF、路径穿越、弱加密、不安全反序列化），并可无缝集成 bandit
+- **硬编码密钥检测**：17+ 条敏感信息规则，覆盖 AWS/阿里云/腾讯云 AccessKey、GitHub Token、私钥、数据库连接串、JWT、Slack Webhook 等
+- **依赖漏洞检查**：内置 CVE 数据库 + 集成 pip-audit / npm-audit，识别已知漏洞的第三方库
 - **真正的流式体验**：SSE + WebSocket 双通道，Token 级流式输出，工具调用状态实时推送，支持中途取消
-- **代码沙箱执行**：基于 `asyncio.create_subprocess_exec` 的子进程隔离，带超时、输出截断与运行时探测
+- **代码沙箱执行**：子进程隔离执行 Python / JavaScript / TypeScript，带超时、输出截断与运行时探测
 - **多层安全防护**：目录穿越拦截（`safe_path`）、频率限制、API Key 环境变量隔离、Docker 非 root 运行
-- **多模型热切换**：内置 11 家提供商（DeepSeek / OpenAI / 智谱 / 通义 / Kimi / 百川…），支持自定义 OpenAI 兼容端点
-- **可观测性**：请求 ID 追踪、耗时统计、`/api/stats` 运行指标端点、结构化日志
-- **会话导出**：一键导出对话为 Markdown 或 JSON
-- **图表渲染**：对话中直接渲染 Mermaid 流程图、时序图、甘特图等
+- **HTML 安全报告导出**：一键生成带严重程度分级的专业安全审计报告
+- **多模型热切换**：内置 11 家提供商（DeepSeek / OpenAI / 智谱 / 通义 / Kimi…），支持自定义 OpenAI 兼容端点
+
+## 🛡 安全工具链
+
+CodeX Security Agent 的核心是三个通过 Function Calling 暴露给 LLM 的安全工具：
+
+| 工具 | 功能 | 检测能力 |
+|------|------|---------|
+| `scan_vulnerability` | SAST 静态代码扫描 | SQL 注入、命令注入、XSS、SSRF、路径穿越、硬编码密码、弱加密、不安全反序列化、调试模式、CORS 配置错误 |
+| `detect_secrets` | 硬编码密钥检测 | AWS/阿里云/腾讯云 AccessKey、GitHub/GitLab/Slack Token、私钥、数据库连接串、JWT、Telegram Bot Token |
+| `check_dependencies` | 依赖漏洞检查 | 内置 CVE 库 + pip-audit（Python）+ npm-audit（Node.js） |
+
+每次扫描都会输出结构化的漏洞报告，包含严重程度分级（critical / high / medium / low）、文件路径、行号、漏洞描述和修复建议，并可导出为 HTML 报告。
 
 ## 📐 系统架构
 
 ```mermaid
 graph TB
-    subgraph "Frontend — React 18 + TypeScript + Vite"
-        UI[ChatPanel<br/>Markdown/Mermaid 渲染]
+    subgraph Frontend["Frontend — React 18 + TypeScript + Vite"]
+        UI[ChatPanel<br/>安全审计对话]
+        SR[SecurityReport<br/>漏洞分级报告]
         CE[CodeMirror 6<br/>代码编辑器]
         FE[FileExplorer<br/>文件树]
-        SB[ConversationSidebar<br/>会话管理]
         API[API Client<br/>SSE 流式解析]
+        UI --> SR
         UI --> API
         CE --> API
         FE --> API
-        SB --> API
     end
 
-    subgraph "Backend — FastAPI + Uvicorn"
+    subgraph Backend["Backend — FastAPI + Uvicorn"]
         ROUTE[REST / SSE / WebSocket 路由]
-        AGENT[Agent Engine<br/>Function Calling 循环]
-        TOOLS[Tool Executor<br/>文件/执行/搜索]
-        PM[Provider Manager<br/>11+ LLM 客户端缓存]
+        AGENT[Security Agent Engine<br/>Function Calling 循环]
+        SECTOOLS[安全工具层<br/>SAST / Secrets / CVE]
+        BASETOOLS[基础工具层<br/>文件 / 执行 / 搜索]
+        PM[Provider Manager<br/>11+ LLM 客户端]
         DB[(SQLite<br/>会话持久化)]
         ROUTE --> AGENT
-        AGENT --> TOOLS
+        AGENT --> SECTOOLS
+        AGENT --> BASETOOLS
         AGENT --> PM
         AGENT --> DB
     end
 
-    subgraph "外部 LLM"
+    subgraph External["外部服务"]
         LLM[DeepSeek / OpenAI / GLM / Qwen...]
+        BANDIT[bandit SAST]
+        AUDIT[pip-audit / npm-audit]
     end
 
     API -->|HTTP / SSE / WS| ROUTE
     PM -->|OpenAI 兼容协议| LLM
+    SECTOOLS -.->|可选集成| BANDIT
+    SECTOOLS -.->|可选集成| AUDIT
 ```
 
-### 一次工具调用的完整时序
+### 一次安全审计的完整时序
 
 ```mermaid
 sequenceDiagram
@@ -80,67 +99,71 @@ sequenceDiagram
     participant F as 前端 ChatPanel
     participant B as FastAPI Agent
     participant L as LLM 提供商
-    participant T as Tool Executor
+    participant T as 安全工具层
 
-    U->>F: 输入「写一个快速排序并运行」
-    F->>B: POST /api/chat/stream (SSE)
-    B->>L: chat.completions(stream=true, tools=[...])
-    L-->>B: tool_calls: [write_file("quick_sort.py", ...)]
+    U->>F: 点击「🛡 Security Scan」
+    F->>B: POST /api/chat/stream (安全审计 prompt)
+    B->>L: chat.completions(tools=[scan_vulnerability, detect_secrets, ...])
+    L-->>B: tool_calls: [scan_vulnerability(directory="")]
     B-->>F: SSE event: tool_call
-    B->>T: write_file(...)
-    T-->>B: {success: true}
-    B->>L: 追加 tool 结果，再次调用
-    L-->>B: tool_calls: [execute_code("python quick_sort.py")]
-    B->>T: execute_code(...)
-    T-->>B: {stdout: "[5,3,8,1]"}
-    B->>L: 追加结果，生成最终回答
-    L-->>B: 流式 token 输出
+    B->>T: scan_vulnerability()
+    T-->>B: {findings: [SQL注入 x2, XSS x1...], stats}
+    B->>L: 追加 tool 结果，请求下一步
+    L-->>B: tool_calls: [detect_secrets(directory="")]
+    B->>T: detect_secrets()
+    T-->>B: [AWS AccessKey (critical), ...]
+    B->>L: 追加结果，生成安全报告
+    L-->>B: 流式输出审计结论 + 修复建议
     B-->>F: SSE event: token × N
-    F-->>U: 逐字渲染最终回复
+    F-->>U: SecurityReport 组件分级展示 + HTML 导出
 ```
 
-## 🧠 核心特性详解
+## 🧠 核心设计
 
-### 1. Agent 工具调用循环
+### 1. 安全审计 Agent 循环
 
 ```python
 # agent.py — 核心循环（简化）
 for _ in range(MAX_TOOL_ITERATIONS):      # 最多 8 轮
-    response = client.chat.completions.create(messages=..., tools=TOOL_DEFINITIONS)
+    response = client.chat.completions.create(messages=..., tools=SECURITY_TOOLS)
     choice = response.choices[0]
 
     if not choice.message.tool_calls:
-        break                              # 无工具调用 = 任务完成
+        break                              # 完成审计，输出报告
 
     for tc in choice.message.tool_calls:
         result = await call_tool(tc.function.name, json.loads(tc.function.arguments))
-        messages.append({                 # 将工具结果回填给 LLM
-            "role": "tool",
-            "tool_call_id": tc.id,
-            "content": json.dumps(result),
+        messages.append({                 # 将扫描结果回填给 LLM
+            "role": "tool", "tool_call_id": tc.id, "content": json.dumps(result),
         })
 ```
 
-### 2. 安全防护设计
+### 2. 密钥检测引擎
+
+基于正则的 17+ 条敏感信息规则，借鉴 truffleHog / gitleaks 的设计思路，支持：
+- 云厂商 AccessKey（AWS `AKIA`、阿里云 `LTAI`、腾讯云 `AKID`）
+- 版本控制 Token（GitHub `ghp_`、GitLab `glpat-`）
+- 通信凭证（Slack、Telegram、Slack Webhook）
+- 数据库连接串、私钥、JWT
+
+每条规则都附带严重程度分级，检测结果包含上下文片段，便于人工确认。
+
+### 3. 多层安全防护
 
 | 威胁 | 防护措施 | 实现位置 |
 |------|---------|---------|
 | 目录穿越攻击 | `safe_path()` 规范化路径 + 前缀校验 | `tools.py` |
 | 二进制/大文件读取 | 扩展名黑名单 + 5MB 大小限制 | `tools.py` |
-| 请求滥用 | 60 次/分钟的滑动窗口限流 | `main.py` |
-| 密钥泄露 | API Key 仅从环境变量或加密配置读取 | `config.py` |
+| 请求滥用 | 60 次/分钟滑动窗口限流 | `main.py` |
+| 密钥泄露 | API Key 仅环境变量读取 | `config.py` |
 | 容器逃逸 | Docker 非 root 用户 + 最小镜像 | `Dockerfile` |
 | 代码执行逃逸 | 子进程隔离 + 超时 + 输出截断 | `tools.py` |
-
-### 3. 多模型 Provider 架构
-
-采用「配置驱动」的设计，新增一个模型提供商**无需改动代码**，只需在 `providers.json` 中添加配置项即可。所有提供商统一走 OpenAI 兼容协议，通过 `AsyncOpenAI` / `OpenAI` 客户端调用，并按 `provider_id` 做客户端缓存，避免重复创建连接。
 
 ## 🛠 技术栈
 
 | 层 | 技术 | 选型理由 |
 |----|------|---------|
-| 后端框架 | FastAPI + Uvicorn | 原生异步、自动 OpenAPI 文档、SSE/WS 支持 |
+| 后端框架 | FastAPI + Uvicorn | 原生异步、自动 OpenAPI、SSE/WS 支持 |
 | Agent | OpenAI SDK (Function Calling) | 统一多提供商兼容层 |
 | 数据库 | SQLite (aiosqlite) | 零部署、适合单机持久化 |
 | 前端 | React 18 + TypeScript 5 | 类型安全 + 组件化 |
@@ -148,7 +171,8 @@ for _ in range(MAX_TOOL_ITERATIONS):      # 最多 8 轮
 | 编辑器 | CodeMirror 6 | 模块化、支持 8 种语言 |
 | 样式 | Tailwind CSS 3 | 原子化 CSS，快速迭代 |
 | Markdown | react-markdown + remark-gfm | 表格/引用/任务列表 |
-| 图表 | Mermaid 11 | 对话内渲染流程图/时序图 |
+| 图表 | Mermaid 11 | 对话内渲染架构图/时序图 |
+| 安全工具 | bandit / pip-audit / npm-audit | 工业级 SAST / 依赖扫描（可选集成） |
 | 部署 | Docker 多阶段构建 | 镜像瘦身 + 非 root 运行 |
 
 ## 🚀 快速开始
@@ -158,6 +182,7 @@ for _ in range(MAX_TOOL_ITERATIONS):      # 最多 8 轮
 - Python 3.11+
 - Node.js 18+（本地执行 JS/TS 代码需要）
 - （可选）Docker & Docker Compose
+- （可选）`pip install bandit pip-audit` 启用深度扫描
 
 ### 方式一：Docker 部署（推荐）
 
@@ -187,14 +212,14 @@ npm install
 npm run dev
 ```
 
-前端 `http://localhost:5173`，通过 Vite proxy 将 `/api` 转发到后端。
+前端 `http://localhost:5173`，通过 Vite proxy 将 `/api` 转发到后端。启动后点击「🛡 Security Scan」按钮即可对工作区代码进行安全审计。
 
 ## 📚 API 接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `POST` | `/api/chat` | 对话（非流式） |
-| `POST` | `/api/chat/stream` | 对话（SSE 流式） |
+| `POST` | `/api/chat/stream` | 对话（SSE 流式）——安全审计入口 |
 | `GET` | `/api/conversations` | 会话列表 |
 | `GET` | `/api/conversations/{id}` | 会话详情 |
 | `DELETE` | `/api/conversations/{id}` | 删除会话 |
@@ -207,13 +232,15 @@ npm run dev
 | `GET` | `/api/providers` | 提供商列表 |
 | `POST` | `/api/providers/configure` | 配置提供商 |
 | `GET` | `/api/providers/{id}/test` | 测试连接 |
-| `GET` | `/api/stats` | 运行统计（请求数/运行时间/活跃连接） |
+| `GET` | `/api/stats` | 运行统计 |
 | `GET` | `/api/health` | 健康检查 |
 | `WS` | `/ws/chat` | WebSocket 对话 |
 
+> 安全工具（`scan_vulnerability` / `detect_secrets` / `check_dependencies`）通过 Function Calling 暴露给 Agent，由 LLM 在对话中自主调用，前端 `SecurityReport` 组件自动渲染扫描结果。
+
 ## 🧪 测试
 
-项目包含完整的单元测试与集成测试，覆盖工具层、Agent 引擎与 API 层，**整体覆盖率约 70%**。
+项目包含完整的单元测试与集成测试，覆盖工具层、Agent 引擎与 API 层。
 
 ```bash
 cd backend
@@ -230,18 +257,7 @@ pytest --cov=. --cov-report=term-missing   # 查看覆盖率明细
 - ✅ 文件增删改查
 - ✅ API 限流（429）
 - ✅ 会话持久化与恢复
-
-## 🔑 键盘快捷键
-
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl+S` | 保存当前文件 |
-| `Ctrl+N` | 新建文件 |
-| `Ctrl+B` | 切换侧边栏 |
-| `Ctrl+E` | 切换编辑器/聊天 |
-| `Ctrl+K` | 新建会话 |
-| `Enter` | 发送消息 |
-| `Shift+Enter` | 换行 |
+- ✅ 安全工具注册（9 个工具）
 
 ## 📁 项目结构
 
@@ -249,17 +265,12 @@ pytest --cov=. --cov-report=term-missing   # 查看覆盖率明细
 codex-agent/
 ├── backend/                       # FastAPI 后端
 │   ├── main.py                    # 路由、中间件、SSE/WS
-│   ├── agent.py                   # Agent 引擎（Function Calling 循环）
-│   ├── tools.py                   # 工具实现 + 安全防护
+│   ├── agent.py                   # 安全审计 Agent 引擎（Function Calling 循环）
+│   ├── tools.py                   # 工具实现（基础 + 安全工具）
 │   ├── config.py                  # 配置与提供商管理
 │   ├── models.py                  # Pydantic 数据模型
 │   ├── providers.json             # 内置 11 家模型提供商
-│   ├── requirements.txt           # 生产依赖
-│   ├── requirements-dev.txt       # 测试依赖
 │   └── tests/                     # 单元测试 + 集成测试
-│       ├── test_agent.py          # Agent 引擎测试
-│       ├── test_tools.py          # 工具层测试（含安全）
-│       └── test_api.py            # API 集成测试
 ├── frontend/                      # React 前端
 │   └── src/
 │       ├── App.tsx                # 主应用（状态管理/布局）
@@ -267,6 +278,7 @@ codex-agent/
 │       ├── types.ts               # TypeScript 类型定义
 │       └── components/
 │           ├── ChatPanel.tsx      # 聊天面板（Markdown/Mermaid/导出）
+│           ├── SecurityReport.tsx # 安全报告（SAST/密钥/依赖分级展示）
 │           ├── ConversationSidebar.tsx  # 会话侧边栏
 │           ├── CodeEditor.tsx     # 代码编辑器（CodeMirror 6）
 │           ├── FileExplorer.tsx   # 文件浏览器
