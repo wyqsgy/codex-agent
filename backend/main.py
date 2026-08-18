@@ -1,27 +1,52 @@
-import os
-import json
-import time
-import logging
-import asyncio
-from contextlib import asynccontextmanager
-from typing import Optional
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from models import (
-    ChatRequest, ChatResponse, FileReadRequest,
-    FileWriteRequest, FileDeleteRequest, ExecuteCodeRequest,
-)
-from agent import engine, AgentError, ConfigError, LLMError
-from tools import list_files, read_file, write_file, delete_file, execute_code, search_files
-from config import (
-    WORKSPACE_DIR, load_providers, save_user_provider, delete_user_provider,
-    get_provider_api_key, DEFAULT_PROVIDER, DEFAULT_MODEL,
-)
+"""FastAPI 主服务。
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("Wsygqy")
+提供 REST + SSE 接口：
+- /api/chat、/api/chat/stream —— 对话
+- /api/conversations —— 会话管理
+- /api/files/* —— 文件管理
+- /api/execute —— 代码执行
+- /api/search —— 代码搜索
+- /api/providers/* —— 提供商管理
+- /ws/chat —— WebSocket 对话
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import time
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from agent import ConfigError, engine
+from config import (
+    DEFAULT_MODEL,
+    DEFAULT_PROVIDER,
+    PORT,
+    WORKSPACE_DIR,
+    delete_user_provider,
+    get_provider_api_key,
+    load_providers,
+    save_user_provider,
+)
+from models import (
+    ChatRequest,
+    ExecuteCodeRequest,
+    FileDeleteRequest,
+    FileReadRequest,
+    FileWriteRequest,
+    ProviderConfigRequest,
+    SearchRequest,
+)
+from tools import delete_file, execute_code, list_files, read_file, search_files, write_file
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger("CodeX.API")
+
+APP_VERSION = "3.0.0"
 
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX = 60
@@ -33,9 +58,7 @@ def _check_rate_limit(client_ip: str) -> bool:
     window_start = now - RATE_LIMIT_WINDOW
     if client_ip not in _rate_limit_store:
         _rate_limit_store[client_ip] = []
-    _rate_limit_store[client_ip] = [
-        t for t in _rate_limit_store[client_ip] if t > window_start
-    ]
+    _rate_limit_store[client_ip] = [t for t in _rate_limit_store[client_ip] if t > window_start]
     _rate_limit_store[client_ip] = _rate_limit_store[client_ip][-RATE_LIMIT_MAX * 2:]
     if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_MAX:
         return False
@@ -43,29 +66,14 @@ def _check_rate_limit(client_ip: str) -> bool:
     return True
 
 
-async def _gc_periodic():
-    while True:
-        await asyncio.sleep(300)
-        engine._gc_conversations()
-        now = time.time()
-        expired = [
-            ip for ip, times in _rate_limit_store.items()
-            if not times or max(times) < now - RATE_LIMIT_WINDOW * 2
-        ]
-        for ip in expired:
-            _rate_limit_store.pop(ip, None)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    gc_task = asyncio.create_task(_gc_periodic())
-    logger.info("Wsygqy Agent started")
+    logger.info(f"CodeX Agent v{APP_VERSION} started")
     yield
-    gc_task.cancel()
-    logger.info("Wsygqy Agent shutting down")
+    logger.info("CodeX Agent shutting down")
 
 
-app = FastAPI(title="Wsygqy Agent", version="2.1.0", lifespan=lifespan)
+app = FastAPI(title="CodeX Agent", version=APP_VERSION, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,7 +81,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-RateLimit-Remaining", "X-RateLimit-Reset"],
 )
 
 
@@ -82,14 +89,12 @@ async def rate_limit_middleware(request: Request, call_next):
     client_ip = request.client.host if request.client else "unknown"
     if request.url.path.startswith("/api/") and request.url.path != "/api/health":
         if not _check_rate_limit(client_ip):
-            return StreamingResponse(
-                content=iter([json.dumps({"detail": "请求过于频繁，请稍后再试。"})]),
+            return JSONResponse(
                 status_code=429,
-                media_type="application/json",
+                content={"detail": "请求过于频繁，请稍后再试。"},
                 headers={"Retry-After": str(RATE_LIMIT_WINDOW)},
             )
-    response = await call_next(request)
-    return response
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -101,31 +106,19 @@ async def log_middleware(request: Request, call_next):
     return response
 
 
-@app.exception_handler(AgentError)
-async def agent_error_handler(request: Request, exc: AgentError):
-    logger.warning(f"Agent error: {exc}")
-    return StreamingResponse(
-        content=iter([json.dumps({"detail": str(exc), "code": type(exc).__name__})]),
-        status_code=400,
-        media_type="application/json",
-    )
-
-
-@app.exception_handler(Exception)
-async def global_error_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled error: {exc}", exc_info=True)
-    return StreamingResponse(
-        content=iter([json.dumps({"detail": f"内部错误: {str(exc)}", "code": "InternalError"})]),
-        status_code=500,
-        media_type="application/json",
-    )
-
-
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "workspace": WORKSPACE_DIR, "name": "Wsygqy Agent", "version": "2.1.0"}
+    return {
+        "status": "ok",
+        "workspace": WORKSPACE_DIR,
+        "name": "CodeX Agent",
+        "version": APP_VERSION,
+    }
 
 
+# ---------------------------------------------------------------------------
+# 对话
+# ---------------------------------------------------------------------------
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
     try:
@@ -136,33 +129,25 @@ async def chat(req: ChatRequest):
             model_id=req.model,
             context_files=req.context_files,
         )
-        if result.get("error"):
-            raise ConfigError(result["reply"])
         return result
-    except AgentError:
-        raise
+    except ConfigError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Chat error: {e}")
+        logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/chat/stream")
 async def chat_stream(req: ChatRequest):
     async def event_stream():
-        try:
-            async for event in engine.chat_stream(
-                message=req.message,
-                conversation_id=req.conversation_id,
-                provider_id=req.provider_id,
-                model_id=req.model,
-                context_files=req.context_files,
-            ):
-                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-        except AgentError as e:
-            yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
-        except Exception as e:
-            logger.error(f"Stream error: {e}")
-            yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
+        async for event in engine.chat_stream(
+            message=req.message,
+            conversation_id=req.conversation_id,
+            provider_id=req.provider_id,
+            model_id=req.model,
+            context_files=req.context_files,
+        ):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         event_stream(),
@@ -175,9 +160,48 @@ async def chat_stream(req: ChatRequest):
     )
 
 
+@app.websocket("/ws/chat")
+async def ws_chat(websocket: WebSocket):
+    await websocket.accept()
+    conversation_id = None
+    try:
+        while True:
+            data = await websocket.receive_text()
+            msg = json.loads(data)
+            result = await engine.chat(
+                message=msg.get("message", ""),
+                conversation_id=conversation_id,
+                provider_id=msg.get("provider_id"),
+                model_id=msg.get("model"),
+                context_files=msg.get("context_files"),
+            )
+            conversation_id = result["conversation_id"]
+            await websocket.send_text(json.dumps(result, ensure_ascii=False))
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_text(json.dumps({"error": str(e)}))
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
+# 会话管理
+# ---------------------------------------------------------------------------
 @app.get("/api/conversations")
 async def list_conversations():
     return engine.list_conversations()
+
+
+@app.get("/api/conversations/{conversation_id}")
+async def get_conversation(conversation_id: str):
+    from agent import _load_conversation
+
+    messages = _load_conversation(conversation_id)
+    if messages is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"id": conversation_id, "messages": messages}
 
 
 @app.delete("/api/conversations/{conversation_id}")
@@ -186,6 +210,9 @@ async def remove_conversation(conversation_id: str):
     return {"success": True}
 
 
+# ---------------------------------------------------------------------------
+# 文件管理
+# ---------------------------------------------------------------------------
 @app.get("/api/files")
 async def get_files(directory: str = ""):
     try:
@@ -225,48 +252,41 @@ async def api_delete_file(req: FileDeleteRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ---------------------------------------------------------------------------
+# 代码执行 & 搜索
+# ---------------------------------------------------------------------------
 @app.post("/api/execute")
 async def api_execute_code(req: ExecuteCodeRequest):
     try:
-        result = execute_code(req.code, req.language, req.timeout)
-        return result
+        return await execute_code(req.code, req.language, req.timeout)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/search")
-async def api_search(query: str, directory: str = ""):
+async def api_search(req: SearchRequest):
     try:
-        results = search_files(query, directory)
-        return results
+        return search_files(req.query, req.directory)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ---------------------------------------------------------------------------
+# 提供商管理
+# ---------------------------------------------------------------------------
 @app.get("/api/providers")
 async def get_providers():
-    providers = load_providers()
     result = []
-    for p in providers:
-        api_key = get_provider_api_key(p)
+    for p in load_providers():
         result.append({
             "id": p["id"],
             "name": p["name"],
             "base_url": p.get("base_url", ""),
             "api_key_env": p.get("api_key_env", ""),
-            "api_key_set": bool(api_key),
+            "api_key_set": bool(get_provider_api_key(p)),
             "models": p.get("models", []),
         })
     return result
-
-
-class ProviderConfigRequest(BaseModel):
-    id: str
-    name: Optional[str] = None
-    base_url: Optional[str] = None
-    api_key: Optional[str] = None
-    api_key_env: Optional[str] = None
-    models: Optional[list[dict]] = None
 
 
 @app.post("/api/providers/configure")
@@ -314,8 +334,7 @@ async def remove_provider(provider_id: str):
 
 @app.get("/api/providers/{provider_id}/test")
 async def test_provider(provider_id: str):
-    providers = load_providers()
-    provider = next((p for p in providers if p["id"] == provider_id), None)
+    provider = next((p for p in load_providers() if p["id"] == provider_id), None)
     if not provider:
         raise HTTPException(status_code=404, detail=f"Provider not found: {provider_id}")
 
@@ -325,7 +344,8 @@ async def test_provider(provider_id: str):
 
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url=provider.get("base_url", "") or None)
+
+        client = OpenAI(api_key=api_key, base_url=provider.get("base_url") or None)
         models = provider.get("models", [])
         test_model = models[0]["id"] if models else "gpt-3.5-turbo"
         response = client.chat.completions.create(
@@ -338,27 +358,7 @@ async def test_provider(provider_id: str):
         return {"success": False, "error": str(e)}
 
 
-@app.websocket("/ws/chat")
-async def ws_chat(websocket: WebSocket):
-    await websocket.accept()
-    conversation_id = None
-    try:
-        while True:
-            data = await websocket.receive_text()
-            msg = json.loads(data)
-            result = await engine.chat(
-                message=msg.get("message", ""),
-                conversation_id=conversation_id,
-                provider_id=msg.get("provider_id"),
-                model_id=msg.get("model"),
-                context_files=msg.get("context_files"),
-            )
-            conversation_id = result["conversation_id"]
-            await websocket.send_text(json.dumps(result, ensure_ascii=False))
-    except WebSocketDisconnect:
-        pass
-    except Exception as e:
-        try:
-            await websocket.send_text(json.dumps({"error": str(e)}))
-        except Exception:
-            pass
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT, reload=True)

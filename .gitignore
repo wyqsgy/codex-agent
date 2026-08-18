@@ -49,6 +49,8 @@ frontend/build/
 # User data
 workspace/
 *.user.json
+*.db
+backend/data/
 
 # OS files
 .DS_Store

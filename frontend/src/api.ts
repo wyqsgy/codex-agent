@@ -1,4 +1,4 @@
-import type { FileItem, ExecuteResult } from './types'
+import type { FileItem, ExecuteResult, ChatMessage, ToolCall } from './types'
 
 const BASE = '/api'
 
@@ -196,10 +196,83 @@ export async function testProvider(providerId: string): Promise<{ success: boole
   return request(`/providers/${providerId}/test`)
 }
 
-export async function listConversations(): Promise<{ id: string; preview: string; message_count: number; created_at: number }[]> {
+export interface ConversationInfo {
+  id: string
+  title: string
+  created_at: number
+  updated_at: number
+}
+
+export async function listConversations(): Promise<ConversationInfo[]> {
   return request('/conversations')
+}
+
+export async function getConversation(conversationId: string): Promise<{ id: string; messages: ChatMessage[] }> {
+  const raw = await request<{ id: string; messages: RawMessage[] }>(`/conversations/${conversationId}`)
+  return { id: raw.id, messages: convertRawMessages(raw.messages) }
 }
 
 export async function deleteConversation(conversationId: string): Promise<{ success: boolean }> {
   return request(`/conversations/${conversationId}`, { method: 'DELETE' })
+}
+
+// ---------------------------------------------------------------------------
+// 后端 OpenAI 消息格式 -> 前端 ChatMessage 格式转换
+// ---------------------------------------------------------------------------
+interface RawToolCall {
+  id: string
+  type: string
+  function: { name: string; arguments: string }
+}
+
+interface RawMessage {
+  role: string
+  content?: string | null
+  tool_calls?: RawToolCall[]
+  tool_call_id?: string
+}
+
+function convertRawMessages(raw: RawMessage[]): ChatMessage[] {
+  const toolResults = new Map<string, ToolCall['result']>()
+
+  // 第一遍：收集 tool 消息的结果
+  for (const m of raw) {
+    if (m.role === 'tool' && m.tool_call_id) {
+      try {
+        const parsed = JSON.parse(m.content || '')
+        toolResults.set(m.tool_call_id, parsed)
+      } catch {
+        toolResults.set(m.tool_call_id, { success: true, result: m.content })
+      }
+    }
+  }
+
+  // 第二遍：构建前端消息
+  const result: ChatMessage[] = []
+  for (const m of raw) {
+    if (m.role === 'system' || m.role === 'tool') continue
+    if (m.role === 'user') {
+      result.push({ role: 'user', content: m.content || '' })
+    } else if (m.role === 'assistant') {
+      const toolCalls: ToolCall[] = (m.tool_calls || []).map((tc) => {
+        let args: Record<string, unknown> = {}
+        try {
+          args = JSON.parse(tc.function.arguments || '{}')
+        } catch {
+          args = {}
+        }
+        return {
+          tool: tc.function.name,
+          args,
+          result: toolResults.get(tc.id) || { success: true, result: undefined },
+        }
+      })
+      result.push({
+        role: 'assistant',
+        content: m.content || '',
+        toolCalls: toolCalls.length ? toolCalls : undefined,
+      })
+    }
+  }
+  return result
 }

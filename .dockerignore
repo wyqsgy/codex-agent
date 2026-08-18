@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+.github
+
+# Node
+frontend/node_modules
+frontend/dist
+frontend/build
+npm-debug.log*
+
+# Python
+__pycache__
+*.py[cod]
+*.egg-info
+.venv
+venv
+ENV
+
+# Env & secrets
+.env
+*.env
+*.env.local
+.env.example
+
+# User data / workspace
+workspace
+backend/data
+*.user.json
+*.db
+
+# IDE / OS
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
